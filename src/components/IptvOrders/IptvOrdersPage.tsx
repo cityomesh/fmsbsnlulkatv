@@ -43,7 +43,7 @@ const IptvOrdersPage = () => {
           return;
         }
 
-        const response = await axios.get(
+        const response = await axios.get<{ data: Order[] }>(
           `http://202.62.66.122/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=1000&vr=railtel1.1`,
           {
             headers: {
@@ -97,7 +97,7 @@ const IptvOrdersPage = () => {
         return;
       }
 
-      const response = await axios.get(
+      const response = await axios.get<{ data: Order[] }>(
         `http://202.62.66.122/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=1000&vr=railtel1.1`,
         {
           headers: {
@@ -114,18 +114,18 @@ const IptvOrdersPage = () => {
 
       const headers: string[] = Object.keys(allOrders[0]);
 
-      const rows: string[][] = allOrders.map((order: any) =>
+      const rows: string[][] = allOrders.map((order: Order) =>
         headers.map((key) =>
-          typeof order[key] === "object"
-            ? JSON.stringify(order[key])
-            : order[key] ?? ""
+          typeof order[key as keyof Order] === "object"
+            ? JSON.stringify(order[key as keyof Order])
+            : String(order[key as keyof Order] ?? "")
         )
       );
 
       const csvContent = [
         headers.join(","),
         ...rows.map(row =>
-          row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(",")
+          row.map(field => `"${field.replace(/"/g, '""')}"`).join(",")
         ),
       ].join("\n");
 

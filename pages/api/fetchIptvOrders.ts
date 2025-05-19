@@ -4,7 +4,7 @@ interface Order {
   ORDER_ID: string;
   CIRCLE_CODE: string;
   ORDER_DATE: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 interface OrderApiResponse {
