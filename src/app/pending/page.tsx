@@ -64,7 +64,6 @@ export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedBA, setSelectedBA] = useState("");
   const [selectedOD, setSelectedOD] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
@@ -322,11 +321,10 @@ export default function FilteredOrdersByExistingMobiles() {
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
-      const matchBA = selectedBA ? order.BA_CODE === selectedBA : true;
       const matchOD = selectedOD ? orderDateOnly === selectedOD : true;
-      return matchBA && matchOD;
+      return matchOD;
     });
-  }, [orders, selectedBA, selectedOD]);
+  }, [orders, selectedOD]);
 
 
   const downloadCSV = () => {

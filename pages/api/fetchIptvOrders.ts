@@ -7,6 +7,10 @@ interface Order {
   [key: string]: any;
 }
 
+interface OrderApiResponse {
+  ROWSET: Order[];
+}
+
 const circleToCdnMap: Record<string, number> = {
   AP: 1,
   TS: 3,
@@ -29,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!response.ok) throw new Error(`Failed to fetch orders: ${response.statusText}`);
 
-    const data = await response.json();
+    const data: OrderApiResponse = await response.json();
     const orders: Order[] = data.ROWSET || [];
 
     const ordersWithDetails = orders.map(order => {
@@ -44,11 +48,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     });
 
-    const sortedOrders = ordersWithDetails.sort((a, b) => new Date(a.ORDER_DATE).getTime() - new Date(b.ORDER_DATE).getTime());
+    const sortedOrders = ordersWithDetails.sort(
+      (a, b) => new Date(a.ORDER_DATE).getTime() - new Date(b.ORDER_DATE).getTime()
+    );
 
     res.status(200).json({ orders: sortedOrders });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching IPTV orders:', error);
-    res.status(500).json({ error: error.message });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'An unknown error occurred' });
+    }
   }
 }

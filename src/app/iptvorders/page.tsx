@@ -1,13 +1,13 @@
 "use client";
 import Header from "../../components/Header";
-import SyncNow from "../../components/SyncNow/syncnow";
+import IptvOrdersPage from "../../components/IptvOrders/IptvOrdersPage";
 
 const Home: React.FC = () => {
 
   return (
     <>   
           <Header/>  
-      <SyncNow/>
+      <IptvOrdersPage/>
     </>
   );
 };

@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -11,7 +10,6 @@ const Header = () => {
   const [lastSynced, setLastSynced] = useState("");
 
   const isAuthenticated = true;
-  const user = { firstName: "John", lastName: "Doe" };
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen((prev) => !prev);
@@ -74,10 +72,10 @@ const Header = () => {
             <Link href="/pending" className="hover:text-blue-400">
               Pending Orders
             </Link>
-            <Link href="/" className="hover:text-blue-400">
+            <Link href="/syncnow" className="hover:text-blue-400">
               🔄 Sync Now
             </Link>
-            <Link href="/syncnow" className="hover:text-blue-400">
+            <Link href="/iptvorders" className="hover:text-blue-400">
                Iptv orders
             </Link>
             <span className="text-[16px] font-bold text-black">

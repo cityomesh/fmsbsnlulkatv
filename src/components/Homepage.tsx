@@ -451,61 +451,6 @@ const IPTVOrdersPage = () => {
     });
   };
   
-
-  const handleRenew = async () => {
-    try {
-      const subscriberResponse = await axios.get(
-        `http://202.62.66.122/api/railtel.php/v1/subscriber?filter[mobile]=${currentMobile}&expand=...`,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const subscriberId = subscriberResponse?.data?.data?.[0]?.id;
-      if (!subscriberId) throw new Error("Subscriber ID not found");
-      const accountResponse = await axios.get(
-        `http://202.62.66.122/api/railtel.php/v1/account?filter[subscriber_id]=${subscriberId}&expand=is_rpc,is_primary_lbl,...`,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const accountId = accountResponse?.data?.data?.[0]?.id;
-      if (!accountId) throw new Error("Account ID not found");
-
-      const renewPayload = {
-        account_id: accountId.toString(),
-        bouque_ids: [1],
-        rperiod_id: 2,
-        remark: "Renew",
-      };
-
-      const renewResponse = await axios.post(
-        "http://202.62.66.122/api/railtel.php/v1/account-bouque/0?vr=railtel1.1",
-        renewPayload,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      console.log("Renewal successful:", renewResponse.data);
-      alert("Renewal successful!");
-      setShowRenewModal(false);
-    } catch (error) {
-      console.error("Renewal failed:", error);
-      alert("Renewal failed. Please try again.");
-    }
-  };
-
   if (loading) return <p className="p-4">Loading...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
