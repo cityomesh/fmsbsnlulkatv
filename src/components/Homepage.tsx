@@ -109,7 +109,7 @@ const IPTVOrdersPage = () => {
     return matchBA && matchOD;
   });
   
-  const currentExistingMobiles: string[] = []; // temp store for this run
+  const currentExistingMobiles: string[] = [];
 
   const isAllSelected = selectedOrderIds.length === filteredOrders.length;
 
@@ -132,7 +132,7 @@ const IPTVOrdersPage = () => {
   };
   
   const orderDateOptions: OptionType[] = orderDates.map(date => {
-    const onlyDate = date.split(' ')[0]; // removes time
+    const onlyDate = date.split(' ')[0];
     return {
       value: onlyDate,
       label: onlyDate,
@@ -280,7 +280,7 @@ const IPTVOrdersPage = () => {
         order.RMN || "", // mobile_no
         order.PHONE_NO || "", // phone_no
         order.EMAIL || "", // email
-        "S0005S000001", // sublocation_code
+        order.BA_CODE || "", // BA_CODE
         "1", // flatno
         "1", // floor
         "", // wing
