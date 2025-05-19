@@ -70,9 +70,6 @@ export default function FilteredOrdersByExistingMobiles() {
   const [popupData, setPopupData] = useState<Order | null>(null);
   const currentMobile = "";
 
-  const currentExistingMobiles: string[] = []; // temp store for this run
-
-
   const handleViewClick = (order: Order) => {
     setPopupData(order);
   };
@@ -81,29 +78,25 @@ export default function FilteredOrdersByExistingMobiles() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem('selectedOrderIds');
+    const storedMobiles = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
-
+  
     if (cachedOrders) {
-        setOrders(JSON.parse(cachedOrders));
-      }
-    
+      setOrders(JSON.parse(cachedOrders));
+    }
+  
     if (savedIds) {
       setSelectedOrderIds(JSON.parse(savedIds));
     }
-
-    if (stored) setExistingMobiles(JSON.parse(stored));
-
-    const cached = localStorage.getItem("filteredOrders");
-    if (cached) setOrders(JSON.parse(cached));
+  
+    if (storedMobiles) {
+      setExistingMobiles(JSON.parse(storedMobiles));
+    }
+  
     fetchFilteredOrders();
   }, []);
-
-  useEffect(() => {
-    if (existingMobiles.length > 0) fetchFilteredOrders();
-  }, [existingMobiles]);
-
+  
   async function fetchFilteredOrders() {
     setLoading(true);
     try {

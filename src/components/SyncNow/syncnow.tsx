@@ -1,9 +1,7 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { circleToCdnMap } from "../constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
-import axios from "axios";
 
 type Order = {
   ORDER_ID: string;
@@ -60,23 +58,10 @@ type Order = {
   warranty_end_date?: string;
 };
 
-type AccountData = {
-  iptvuser_id?: string;
-  iptvuser_password?: string;
-  scheme_id?: number;
-  bouque_ids?: number[];
-  rperiod_id?: number;
-};
-
 type OptionType = {
   value: string;
   label: string;
 };
-
-interface Subscriber {
-  id: number;
-  mobile: string;
-}
 
 const IPTVOrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -85,19 +70,15 @@ const IPTVOrdersPage = () => {
   const [bas, setBas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber] = useState("");
   const [error, setError] = useState('');
   const [popupData, setPopupData] = useState<Order | null>(null); // For storing clicked order data
   const [isPopupVisible, setIsPopupVisible] = useState(false); // For showing and hiding the modal
-  const [popupDataselectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [totalSelectedCount, setTotalSelectedCount] = useState(0);
   const [showExisting, setShowExisting] = useState(false);
   const [showRegistered, setShowRegistered] = useState(false);
 
-  const [groupedOrders, setGroupedOrders] = useState<Record<number, Order[]>>({});
   const [orderDates, setOrderDates] = useState<string[]>([]);
-  const [showRenewModal, setShowRenewModal] = useState(false);
-  const [currentMobile, setCurrentMobile] = useState<string | null>(null);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const registeredMobiles = ["9491575559", "7981234567", "9876543210"];
   const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
@@ -109,30 +90,17 @@ const IPTVOrdersPage = () => {
     return matchBA && matchOD;
   });
   
-  const currentExistingMobiles: string[] = []; // temp store for this run
+  const currentExistingMobiles: string[] = [];
 
   const isAllSelected = selectedOrderIds.length === filteredOrders.length;
-
-  const getCdnIdFromCircleCode = (circleCode: string) => {
-    const cd3Circles = ["TN", "KA", "TS"]; // CD3 region
-    return cd3Circles.includes(circleCode.toUpperCase()) ? 3 : 1; // CD1 otherwise
-  };
 
   {existingMobiles.map((mobile: string, index: number) => (
     <li key={index}>{mobile}</li>
   ))}
   
-
-
-  const checkExistingMobile = (mobile: string) => {
-    if (registeredMobiles.includes(mobile)) {
-      setExistingMobiles(prev => [...prev, mobile]);
-      setShowRenewModal(true);
-    }
-  };
   
   const orderDateOptions: OptionType[] = orderDates.map(date => {
-    const onlyDate = date.split(' ')[0]; // removes time
+    const onlyDate = date.split(' ')[0];
     return {
       value: onlyDate,
       label: onlyDate,
@@ -206,32 +174,6 @@ const IPTVOrdersPage = () => {
     setIsPopupVisible(false);
     setPopupData(null);
   };
-
-
-  const handleRegister = async () => {
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phoneNumber }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        if (data.message === 'Phone number already registered') {
-          setError('This phone number is already registered.');
-        } else {
-          setError('An error occurred. Please try again.');
-        }
-      } else {
-        console.log('Registration successful');
-      }
-    } catch (error) {
-      setError('An error occurred. Please try again.');
-    }
-  };
   
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedBA(e.target.value);
@@ -240,15 +182,6 @@ const IPTVOrdersPage = () => {
   const resetBA = () => {
     setSelectedBA("");
   };
-
-  const handleFilterChangeOrderdate = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedOD(e.target.value);
-  };
-
-  const resetOd = () => {
-    setSelectedOD("");
-  };
-
   
   const downloadCSV = () => {
     const headers = [
@@ -280,7 +213,7 @@ const IPTVOrdersPage = () => {
         order.RMN || "", // mobile_no
         order.PHONE_NO || "", // phone_no
         order.EMAIL || "", // email
-        "S0005S000001", // sublocation_code
+        order.BA_CODE || "", // BA_CODE
         "1", // flatno
         "1", // floor
         "", // wing
