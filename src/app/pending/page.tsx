@@ -69,10 +69,8 @@ export default function FilteredOrdersByExistingMobiles() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
   const currentMobile = "";
-  const successMobiles: string[] = [];
-  const tempSuccessMobiles: string[] = [];
 
-  const currentExistingMobiles: string[] = [];
+  const currentExistingMobiles: string[] = []; // temp store for this run
 
 
   const handleViewClick = (order: Order) => {
@@ -147,117 +145,7 @@ export default function FilteredOrdersByExistingMobiles() {
     }
   }
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`;
-
-  const handleCreate = async () => {
-      if (selectedOrderIds.length === 0) {
-        alert("Please select at least one order.");
-        return;
-      }
-    
-      const selectedOrders = orders.filter((order) =>
-        selectedOrderIds.includes(order.ORDER_ID)
-      );
-    
-      const processedPhones = new Set<string>();
-      const successMobiles: string[] = [];
-      const existingMobiles: string[] = [];
-    
-      for (const order of selectedOrders) {
-        const mobile = order.RMN || order.PHONE_NO || "9999999999";
-        if (processedPhones.has(mobile)) continue;
-    
-        const cleanCircle = order.CIRCLE_CODE?.trim().toUpperCase();
-        const cdn_id = circleToCdnMap[cleanCircle] || 1;
-    
-        const subscriberPayload = {
-          billing_address: { addr: order.ADDRESS || "N/A", pincode: "123456" },
-          fname: order.CUSTOMER_NAME || "N/A",
-          mname: "",
-          lname: "NA",
-          mobile_no: mobile,
-          phone_no: mobile,
-          email: order.EMAIL?.trim() || "user@example.com",
-          installation_address: order.ADDRESS || "N/A",
-          pincode: "123456",
-          formno: "",
-          gender: 0,
-          dob: null,
-          customer_type: 1,
-          sublocation_id: 5,
-          cdn_id: cdn_id,
-          flatno: "109",
-          floor: "5",
-        };
-    
-        try {
-          const subscriberRes = await fetch(
-            "http://202.62.66.122/api/railtel.php/v1/subscriber?vr=railtel1.1",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: token,
-              },
-              body: JSON.stringify(subscriberPayload),
-            }
-          );
-          const subscriberData = await subscriberRes.json();
-          const subscriberId = subscriberData?.data?.id;
-    
-          if (!subscriberRes.ok || !subscriberId) {
-            console.error("❌ Subscriber creation failed:", subscriberData);
-            continue;
-          }
-    
-          const accountPayload = {
-            subscriber_id: subscriberId,
-            iptvuser_id: mobile,
-            iptvuser_password: "test55",
-            scheme_id: 1,
-            bouque_ids: [1],
-            rperiod_id: 2,
-            cdn_id,
-          };
-    
-          const accountRes = await fetch(
-            "http://202.62.66.122/api/railtel.php/v1/account?vr=railtel1.1",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: token,
-              },
-              body: JSON.stringify(accountPayload),
-            }
-          );
-    
-          const accountData = await accountRes.json();
-    
-          if (!accountRes.ok) {
-            const errorMsg = accountData?.data?.message?.pairing_id?.[0];
-            if (errorMsg?.includes("already in assigned")) {
-              currentExistingMobiles.push(mobile);
-            }
-          continue;
-          } else {
-            successMobiles.push(mobile);
-            processedPhones.add(mobile);
-          }
-        } catch (err) {
-          console.error("Error:", err);
-          alert("Something went wrong.");
-        }
-      }
-    
-      setSelectedOrderIds([]);
-      setExistingMobiles((prev) => Array.from(new Set([...prev, ...existingMobiles])));
-      setExistingMobiles((prev) => {
-        const updatedList = Array.from(new Set([...prev, ...currentExistingMobiles]));
-        localStorage.setItem("existingMobiles", JSON.stringify(updatedList));
-        return updatedList;
-      });
-    };
+  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
 
   const handleRenew = async () => {
     try {
