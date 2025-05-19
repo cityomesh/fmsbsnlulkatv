@@ -64,17 +64,15 @@ export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedBA, setSelectedBA] = useState("");
-  const [selectedOD, setSelectedOD] = useState("");
+  const selectedBA = "";
+  const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
-  const [showRenewModal, setShowRenewModal] = useState(false);
-  const [currentMobile, setCurrentMobile] = useState<string | null>(null);
-  const [showResultModal, setShowResultModal] = useState(false);
-  const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
-  const [isRenewChecked, setIsRenewChecked] = useState(false);
+  const currentMobile = "";
+  const successMobiles: string[] = [];
+  const tempSuccessMobiles: string[] = [];
 
-  const currentExistingMobiles: string[] = []; // temp store for this run
+  const currentExistingMobiles: string[] = [];
 
 
   const handleViewClick = (order: Order) => {
@@ -149,7 +147,7 @@ export default function FilteredOrdersByExistingMobiles() {
     }
   }
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
+  const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const handleCreate = async () => {
       if (selectedOrderIds.length === 0) {
@@ -253,8 +251,6 @@ export default function FilteredOrdersByExistingMobiles() {
       }
     
       setSelectedOrderIds([]);
-      setSuccessMobiles(successMobiles);
-      setShowResultModal(true);
       setExistingMobiles((prev) => Array.from(new Set([...prev, ...existingMobiles])));
       setExistingMobiles((prev) => {
         const updatedList = Array.from(new Set([...prev, ...currentExistingMobiles]));
@@ -310,7 +306,6 @@ export default function FilteredOrdersByExistingMobiles() {
       );
       console.log("Renewal successful:", renewResponse.data);
       alert("Renewal successful!");
-      setShowRenewModal(false);
     } catch (error) {
       console.error("Renewal failed:", error);
       alert("Renewal failed. Please try again.");
@@ -412,7 +407,6 @@ export default function FilteredOrdersByExistingMobiles() {
         </button>
         <button
             onClick={() => {
-            setShowResultModal(false);
             handleRenew();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded"
