@@ -81,21 +81,14 @@ export default function FilteredOrdersByExistingMobiles() {
     const storedMobiles = localStorage.getItem("existingMobiles");
     const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
-  
-    if (cachedOrders) {
-      setOrders(JSON.parse(cachedOrders));
-    }
-  
-    if (savedIds) {
-      setSelectedOrderIds(JSON.parse(savedIds));
-    }
-  
-    if (storedMobiles) {
-      setExistingMobiles(JSON.parse(storedMobiles));
-    }
-  
+
+    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
+
     fetchFilteredOrders();
   }, []);
+
   
   async function fetchFilteredOrders() {
     setLoading(true);

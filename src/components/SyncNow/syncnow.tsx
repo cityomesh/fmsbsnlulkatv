@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { circleToCdnMap } from "../constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
@@ -70,7 +71,6 @@ const IPTVOrdersPage = () => {
   const [bas, setBas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [phoneNumber] = useState("");
   const [error, setError] = useState('');
   const [popupData, setPopupData] = useState<Order | null>(null); // For storing clicked order data
   const [isPopupVisible, setIsPopupVisible] = useState(false); // For showing and hiding the modal
@@ -80,7 +80,6 @@ const IPTVOrdersPage = () => {
 
   const [orderDates, setOrderDates] = useState<string[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
-  const registeredMobiles = ["9491575559", "7981234567", "9876543210"];
   const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
   const [showResultModal, setShowResultModal] = useState(false);
   const filteredOrders = orders.filter(order => {
