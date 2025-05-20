@@ -12,7 +12,7 @@ type Order = {
     BA_CODE: string;
     RMN?: string;
     PHONE_NO?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
     EMAIL?: string;
     ADDRESS?: string;
     CUST_ACCNT_NO?: string;
