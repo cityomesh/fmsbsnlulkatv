@@ -64,15 +64,12 @@ export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedBA, setSelectedBA] = useState("");
-  const [selectedOD, setSelectedOD] = useState("");
+  const selectedBA = "";
+  const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [currentMobile, setCurrentMobile] = useState<string | null>(null);
-  const [showResultModal, setShowResultModal] = useState(false);
-  const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
-  const [isRenewChecked, setIsRenewChecked] = useState(false);
   const currentExistingMobiles: string[] = []; // temp store for this run
 
   const handleViewClick = (order: Order) => {
@@ -148,172 +145,6 @@ export default function FilteredOrdersByExistingMobiles() {
   }
   
   const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
-
-  const handleCreate = async () => {
-      if (selectedOrderIds.length === 0) {
-        alert("Please select at least one order.");
-        return;
-      }
-    
-      const selectedOrders = orders.filter((order) =>
-        selectedOrderIds.includes(order.ORDER_ID)
-      );
-    
-      const processedPhones = new Set<string>();
-      const successMobiles: string[] = [];
-      const existingMobiles: string[] = [];
-    
-      for (const order of selectedOrders) {
-        const mobile = order.RMN || order.PHONE_NO || "9999999999";
-        if (processedPhones.has(mobile)) continue;
-    
-        const cleanCircle = order.CIRCLE_CODE?.trim().toUpperCase();
-        const cdn_id = circleToCdnMap[cleanCircle] || 1;
-    
-        const subscriberPayload = {
-          billing_address: { addr: order.ADDRESS || "N/A", pincode: "123456" },
-          fname: order.CUSTOMER_NAME || "N/A",
-          mname: "",
-          lname: "NA",
-          mobile_no: mobile,
-          phone_no: mobile,
-          email: order.EMAIL?.trim() || "user@example.com",
-          installation_address: order.ADDRESS || "N/A",
-          pincode: "123456",
-          formno: "",
-          gender: 0,
-          dob: null,
-          customer_type: 1,
-          sublocation_id: 5,
-          cdn_id: cdn_id,
-          flatno: "109",
-          floor: "5",
-        };
-    
-        try {
-          const subscriberRes = await fetch(
-            "http://202.62.66.122/api/railtel.php/v1/subscriber?vr=railtel1.1",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: token,
-              },
-              body: JSON.stringify(subscriberPayload),
-            }
-          );
-          const subscriberData = await subscriberRes.json();
-          const subscriberId = subscriberData?.data?.id;
-    
-          if (!subscriberRes.ok || !subscriberId) {
-            console.error("❌ Subscriber creation failed:", subscriberData);
-            continue;
-          }
-    
-          const accountPayload = {
-            subscriber_id: subscriberId,
-            iptvuser_id: mobile,
-            iptvuser_password: "test55",
-            scheme_id: 1,
-            bouque_ids: [1],
-            rperiod_id: 2,
-            cdn_id,
-          };
-    
-          const accountRes = await fetch(
-            "http://202.62.66.122/api/railtel.php/v1/account?vr=railtel1.1",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: token,
-              },
-              body: JSON.stringify(accountPayload),
-            }
-          );
-    
-          const accountData = await accountRes.json();
-    
-          if (!accountRes.ok) {
-            const errorMsg = accountData?.data?.message?.pairing_id?.[0];
-            if (errorMsg?.includes("already in assigned")) {
-              currentExistingMobiles.push(mobile);
-            }
-          continue;
-          } else {
-            successMobiles.push(mobile);
-            processedPhones.add(mobile);
-          }
-        } catch (err) {
-          console.error("Error:", err);
-          alert("Something went wrong.");
-        }
-      }
-      setSelectedOrderIds([]);
-      setSuccessMobiles(successMobiles);
-      setShowResultModal(true);
-      setExistingMobiles((prev) => Array.from(new Set([...prev, ...existingMobiles])));
-      setExistingMobiles((prev) => {
-        const updatedList = Array.from(new Set([...prev, ...currentExistingMobiles]));
-        localStorage.setItem("existingMobiles", JSON.stringify(updatedList));
-        return updatedList;
-      });
-    };
-
-  const handleRenew = async () => {
-    try {
-      const subscriberResponse = await axios.get(
-        `http://202.62.66.122/api/railtel.php/v1/subscriber?filter[mobile]=${currentMobile}&expand=...`,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const subscriberId = subscriberResponse?.data?.data?.[0]?.id;
-      if (!subscriberId) throw new Error("Subscriber ID not found");
-
-      const accountResponse = await axios.get(
-        `http://202.62.66.122/api/railtel.php/v1/account?filter[subscriber_id]=${subscriberId}&expand=is_rpc,is_primary_lbl,...`,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const accountId = accountResponse?.data?.data?.[0]?.id;
-      if (!accountId) throw new Error("Account ID not found");
-
-      const renewPayload = {
-        account_id: accountId.toString(),
-        bouque_ids: [1],
-        rperiod_id: 2,
-        remark: "Renew",
-      };
-
-      const renewResponse = await axios.post(
-        "http://202.62.66.122/api/railtel.php/v1/account-bouque/0?vr=railtel1.1",
-        renewPayload,
-        {
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      console.log("Renewal successful:", renewResponse.data);
-      alert("Renewal successful!");
-      setShowRenewModal(false);
-    } catch (error) {
-      console.error("Renewal failed:", error);
-      alert("Renewal failed. Please try again.");
-    }
-    setSelectedOrderIds([]);
-  };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -476,8 +307,6 @@ export default function FilteredOrdersByExistingMobiles() {
         </button>
         <button
             onClick={() => {
-            setShowResultModal(false);
-            handleRenew();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded"
         >
