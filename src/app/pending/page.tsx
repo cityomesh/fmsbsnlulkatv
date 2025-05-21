@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import Header from "../../components/Header";
-import axios from "axios";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
 type Order = {
@@ -68,9 +67,6 @@ export default function FilteredOrdersByExistingMobiles() {
   const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
-  const [showRenewModal, setShowRenewModal] = useState(false);
-  const [currentMobile, setCurrentMobile] = useState<string | null>(null);
-  const currentExistingMobiles: string[] = []; // temp store for this run
 
   const handleViewClick = (order: Order) => {
     setPopupData(order);
