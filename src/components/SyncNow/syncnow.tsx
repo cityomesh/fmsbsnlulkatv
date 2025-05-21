@@ -182,6 +182,54 @@ const IPTVOrdersPage = () => {
     setSelectedBA("");
   };
   
+
+  const baCodeDetailsMap: {
+    [key: string]: {
+      sublocationCode: string;
+      cdnCode: string;
+    };
+  } = {
+    "Visakhapatnam": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Chittoor": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "Anantapur": { sublocationCode: "S2103S000001", cdnCode: "CDN109" },
+    "Nellore": { sublocationCode: "S2097S000004", cdnCode: "CDN116" },
+    "Rajahmundry": { sublocationCode: "S2098S000001", cdnCode: "CDN115" },
+    "Vijayawada": { sublocationCode: "S2095S000001", cdnCode: "CDN110" },
+    "Ongloe": { sublocationCode: "S2106S000001", cdnCode: "CDN123" },
+    "Srikakulam": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Eluru": { sublocationCode: "S2096S000001", cdnCode: "CDN117" },
+    "Kurnool": { sublocationCode: "S2100S000001", cdnCode: "CDN114" },
+    "Guntur": { sublocationCode: "S2104S000001", cdnCode: "CDN108" },
+    "Cuddapah": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
+    "Vijayanagaram": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Tirupati": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "Warangal": { sublocationCode: "S2112S000001", cdnCode: "CDN106" },
+    "CHT": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "RMY": { sublocationCode: "S2098S000001", cdnCode: "CDN115" },
+    "VZM": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "ADB": { sublocationCode: "S2114S000001", cdnCode: "CDN106" },
+    "NLR": { sublocationCode: "S2097S000004", cdnCode: "CDN116" },
+    "KHM": { sublocationCode: "S2108S000001", cdnCode: "CDN106" },
+    "KAA": { sublocationCode: "S2115S000001", cdnCode: "CDN106" },
+    "ELR": { sublocationCode: "S2096S000001", cdnCode: "CDN117" },
+    "NGD": { sublocationCode: "S2110S000001", cdnCode: "CDN106" },
+    "HYD": { sublocationCode: "S2107S000001", cdnCode: "CDN106" },
+    "WGL": { sublocationCode: "S2112S000001", cdnCode: "CDN106" },
+    "VSK": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "MBN": { sublocationCode: "S2109S000001", cdnCode: "CDN106" },
+    "KNL": { sublocationCode: "S2100S000001", cdnCode: "CDN114" },
+    "ATP": { sublocationCode: "S2103S000001", cdnCode: "CDN109" },
+    "GTR": { sublocationCode: "S2104S000001", cdnCode: "CDN108" },
+    "ONG": { sublocationCode: "S2106S000001", cdnCode: "CDN123" },
+    "VJW": { sublocationCode: "S2095S000001", cdnCode: "CDN110" },
+    "NZB": { sublocationCode: "S2111S000001", cdnCode: "CDN106" },
+    "SGD": { sublocationCode: "S2113S000001", cdnCode: "CDN106" },
+    "SKM": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "CDP": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
+    "Nalgonda": { sublocationCode: "S2110S000001", cdnCode: "CDN106" }
+  };
+  
+  
   const downloadCSV = () => {
     const headers = [
       "fname", "lname", "mname", "gender", "mobile_no", "phone_no", "email",
@@ -203,7 +251,8 @@ const IPTVOrdersPage = () => {
       const fullName = (order.CUSTOMER_NAME || "").trim().split(" ");
       const fname = fullName.slice(0, 2).join(" ");
       const lname = fullName.slice(2).join(" ");
-  
+      const details = baCodeDetailsMap[order.BA_CODE] || {};
+
       return [
         fname, // fname
         lname, // lname
@@ -212,7 +261,7 @@ const IPTVOrdersPage = () => {
         order.RMN || "", // mobile_no
         order.PHONE_NO || "", // phone_no
         order.EMAIL || "", // email
-        order.BA_CODE || "", // BA_CODE
+        details.sublocationCode || order.BA_CODE || "", // sublocation_code
         "1", // flatno
         "1", // floor
         "", // wing
@@ -234,7 +283,7 @@ const IPTVOrdersPage = () => {
         "", // is_verified
         "", // gst_no
         "Bsnl@123", // iptvuser_password
-        "1", // cdn_code
+        details.cdnCode || "1", // cdn_code
         "", // warranty_end_date
       ];
     });

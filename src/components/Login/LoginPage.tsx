@@ -42,7 +42,7 @@ const Login = () => {
         console.log("User Data:", data.data);
         localStorage.setItem("access_token", data.data.access_token);
         localStorage.setItem("auth_token", data.data.auth_token);
-        localStorage.setItem("username", data.data.username);
+        localStorage.setItem("username", data.data.username); 
 
         setTimeout(() => {
           router.push("/");
@@ -50,8 +50,7 @@ const Login = () => {
       } else {
         setError(data.message || "Invalid credentials. Please try again.");
       }
-    } catch {
-      // Removed unused 'error' variable
+    } catch (error) {
       setError("Something went wrong. Please try again later.");
     } finally {
       setLoading(false);

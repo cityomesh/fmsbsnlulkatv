@@ -64,11 +64,16 @@ export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const selectedBA = "";
-  const selectedOD = "";
+  const [selectedBA, setSelectedBA] = useState("");
+  const [selectedOD, setSelectedOD] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
-  const currentMobile = "";
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [currentMobile, setCurrentMobile] = useState<string | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
+  const [isRenewChecked, setIsRenewChecked] = useState(false);
+  const currentExistingMobiles: string[] = []; // temp store for this run
 
   const handleViewClick = (order: Order) => {
     setPopupData(order);
@@ -77,19 +82,30 @@ export default function FilteredOrdersByExistingMobiles() {
     setPopupData(null);
   };
 
-  useEffect(() => {
-    const storedMobiles = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem("selectedOrderIds");
+    useEffect(() => {
+    const stored = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem('selectedOrderIds');
     const cachedOrders = localStorage.getItem("filteredOrders");
 
-    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
-    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
+    if (cachedOrders) {
+        setOrders(JSON.parse(cachedOrders));
+      }
+    
+    if (savedIds) {
+      setSelectedOrderIds(JSON.parse(savedIds));
+    }
 
+    if (stored) setExistingMobiles(JSON.parse(stored));
+
+    const cached = localStorage.getItem("filteredOrders");
+    if (cached) setOrders(JSON.parse(cached));
     fetchFilteredOrders();
   }, []);
 
-  
+  useEffect(() => {
+    if (existingMobiles.length > 0) fetchFilteredOrders();
+  }, [existingMobiles]);
+
   async function fetchFilteredOrders() {
     setLoading(true);
     try {
@@ -132,6 +148,117 @@ export default function FilteredOrdersByExistingMobiles() {
   }
   
   const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
+
+  const handleCreate = async () => {
+      if (selectedOrderIds.length === 0) {
+        alert("Please select at least one order.");
+        return;
+      }
+    
+      const selectedOrders = orders.filter((order) =>
+        selectedOrderIds.includes(order.ORDER_ID)
+      );
+    
+      const processedPhones = new Set<string>();
+      const successMobiles: string[] = [];
+      const existingMobiles: string[] = [];
+    
+      for (const order of selectedOrders) {
+        const mobile = order.RMN || order.PHONE_NO || "9999999999";
+        if (processedPhones.has(mobile)) continue;
+    
+        const cleanCircle = order.CIRCLE_CODE?.trim().toUpperCase();
+        const cdn_id = circleToCdnMap[cleanCircle] || 1;
+    
+        const subscriberPayload = {
+          billing_address: { addr: order.ADDRESS || "N/A", pincode: "123456" },
+          fname: order.CUSTOMER_NAME || "N/A",
+          mname: "",
+          lname: "NA",
+          mobile_no: mobile,
+          phone_no: mobile,
+          email: order.EMAIL?.trim() || "user@example.com",
+          installation_address: order.ADDRESS || "N/A",
+          pincode: "123456",
+          formno: "",
+          gender: 0,
+          dob: null,
+          customer_type: 1,
+          sublocation_id: 5,
+          cdn_id: cdn_id,
+          flatno: "109",
+          floor: "5",
+        };
+    
+        try {
+          const subscriberRes = await fetch(
+            "http://202.62.66.122/api/railtel.php/v1/subscriber?vr=railtel1.1",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token,
+              },
+              body: JSON.stringify(subscriberPayload),
+            }
+          );
+          const subscriberData = await subscriberRes.json();
+          const subscriberId = subscriberData?.data?.id;
+    
+          if (!subscriberRes.ok || !subscriberId) {
+            console.error("❌ Subscriber creation failed:", subscriberData);
+            continue;
+          }
+    
+          const accountPayload = {
+            subscriber_id: subscriberId,
+            iptvuser_id: mobile,
+            iptvuser_password: "test55",
+            scheme_id: 1,
+            bouque_ids: [1],
+            rperiod_id: 2,
+            cdn_id,
+          };
+    
+          const accountRes = await fetch(
+            "http://202.62.66.122/api/railtel.php/v1/account?vr=railtel1.1",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token,
+              },
+              body: JSON.stringify(accountPayload),
+            }
+          );
+    
+          const accountData = await accountRes.json();
+    
+          if (!accountRes.ok) {
+            const errorMsg = accountData?.data?.message?.pairing_id?.[0];
+            if (errorMsg?.includes("already in assigned")) {
+              currentExistingMobiles.push(mobile);
+            }
+          continue;
+          } else {
+            successMobiles.push(mobile);
+            processedPhones.add(mobile);
+          }
+        } catch (err) {
+          console.error("Error:", err);
+          alert("Something went wrong.");
+        }
+      }
+      setSelectedOrderIds([]);
+      setSuccessMobiles(successMobiles);
+      setShowResultModal(true);
+      setExistingMobiles((prev) => Array.from(new Set([...prev, ...existingMobiles])));
+      setExistingMobiles((prev) => {
+        const updatedList = Array.from(new Set([...prev, ...currentExistingMobiles]));
+        localStorage.setItem("existingMobiles", JSON.stringify(updatedList));
+        return updatedList;
+      });
+    };
 
   const handleRenew = async () => {
     try {
@@ -180,13 +307,13 @@ export default function FilteredOrdersByExistingMobiles() {
       );
       console.log("Renewal successful:", renewResponse.data);
       alert("Renewal successful!");
+      setShowRenewModal(false);
     } catch (error) {
       console.error("Renewal failed:", error);
       alert("Renewal failed. Please try again.");
     }
     setSelectedOrderIds([]);
   };
-
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -197,7 +324,52 @@ export default function FilteredOrdersByExistingMobiles() {
     });
   }, [orders, selectedBA, selectedOD]);
 
-
+  const baCodeDetailsMap: {
+    [key: string]: {
+      sublocationCode: string;
+      cdnCode: string;
+    };
+  } = {
+    "Visakhapatnam": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Chittoor": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "Anantapur": { sublocationCode: "S2103S000001", cdnCode: "CDN109" },
+    "Nellore": { sublocationCode: "S2097S000004", cdnCode: "CDN116" },
+    "Rajahmundry": { sublocationCode: "S2098S000001", cdnCode: "CDN115" },
+    "Vijayawada": { sublocationCode: "S2095S000001", cdnCode: "CDN110" },
+    "Ongloe": { sublocationCode: "S2106S000001", cdnCode: "CDN123" },
+    "Srikakulam": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Eluru": { sublocationCode: "S2096S000001", cdnCode: "CDN117" },
+    "Kurnool": { sublocationCode: "S2100S000001", cdnCode: "CDN114" },
+    "Guntur": { sublocationCode: "S2104S000001", cdnCode: "CDN108" },
+    "Cuddapah": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
+    "Vijayanagaram": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "Tirupati": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "Warangal": { sublocationCode: "S2112S000001", cdnCode: "CDN106" },
+    "CHT": { sublocationCode: "S2105S000001", cdnCode: "CDN104" },
+    "RMY": { sublocationCode: "S2098S000001", cdnCode: "CDN115" },
+    "VZM": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "ADB": { sublocationCode: "S2114S000001", cdnCode: "CDN106" },
+    "NLR": { sublocationCode: "S2097S000004", cdnCode: "CDN116" },
+    "KHM": { sublocationCode: "S2108S000001", cdnCode: "CDN106" },
+    "KAA": { sublocationCode: "S2115S000001", cdnCode: "CDN106" },
+    "ELR": { sublocationCode: "S2096S000001", cdnCode: "CDN117" },
+    "NGD": { sublocationCode: "S2110S000001", cdnCode: "CDN106" },
+    "HYD": { sublocationCode: "S2107S000001", cdnCode: "CDN106" },
+    "WGL": { sublocationCode: "S2112S000001", cdnCode: "CDN106" },
+    "VSK": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "MBN": { sublocationCode: "S2109S000001", cdnCode: "CDN106" },
+    "KNL": { sublocationCode: "S2100S000001", cdnCode: "CDN114" },
+    "ATP": { sublocationCode: "S2103S000001", cdnCode: "CDN109" },
+    "GTR": { sublocationCode: "S2104S000001", cdnCode: "CDN108" },
+    "ONG": { sublocationCode: "S2106S000001", cdnCode: "CDN123" },
+    "VJW": { sublocationCode: "S2095S000001", cdnCode: "CDN110" },
+    "NZB": { sublocationCode: "S2111S000001", cdnCode: "CDN106" },
+    "SGD": { sublocationCode: "S2113S000001", cdnCode: "CDN106" },
+    "SKM": { sublocationCode: "S2102S000001", cdnCode: "CDN112" },
+    "CDP": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
+    "Nalgonda": { sublocationCode: "S2110S000001", cdnCode: "CDN106" }
+  };
+  
   const downloadCSV = () => {
     const headers = [
       "fname", "lname", "mname", "gender", "mobile_no", "phone_no", "email",
@@ -208,30 +380,58 @@ export default function FilteredOrdersByExistingMobiles() {
       "warranty_date", "is_verified", "gst_no", "iptvuser_password",
       "cdn_code", "warranty_end_date"
     ];
-
+  
     const selectedOrders = filteredOrders.filter(order =>
       selectedOrderIds.includes(order.ORDER_ID)
     );
-
+  
     const rows = selectedOrders.map(order => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
       const fullName = (order.CUSTOMER_NAME || "").trim().split(" ");
       const fname = fullName.slice(0, 2).join(" ");
       const lname = fullName.slice(2).join(" ");
+      const details = baCodeDetailsMap[order.BA_CODE] || {};
 
       return [
-        fname, lname, "", "1", order.RMN || "", order.PHONE_NO || "", order.EMAIL || "",
-        "S0005S000001", "1", "1", "", order.ADDRESS || "", pincode, order.ADDRESS || "",
-        pincode, order.RMN, "1", "", "X000002", "3", "", "1", "0", "", "", "", "", "",
-        "Bsnl@123", "1", ""
+        fname, // fname
+        lname, // lname
+        "", // mname
+        "1", // gender
+        order.RMN || "", // mobile_no
+        order.PHONE_NO || "", // phone_no
+        order.EMAIL || "", // email
+        details.sublocationCode || order.BA_CODE || "", // sublocation_code
+        "1", // flatno
+        "1", // floor
+        "", // wing
+        order.ADDRESS || "", // installation_address
+        pincode, // installation_pincode
+        order.ADDRESS || "", // billing_address
+        pincode, // billing_pincode
+        order.RMN, // iptvuser_id
+        "1", // bouque_code
+        "", // outstanding
+        "X000002", // scheme_code
+        "3", // rperiod_code
+        "", // dob
+        "1", // customer_type
+        "0", // formno
+        "", // uid
+        "", // minid
+        "", // warranty_date
+        "", // is_verified
+        "", // gst_no
+        "Bsnl@123", // iptvuser_password
+        details.cdnCode || "1", // cdn_code
+        "", // warranty_end_date
       ];
     });
-
+  
     const csvContent = [headers, ...rows]
       .map(row => row.map(item => `"${item}"`).join(","))
       .join("\n");
-
+  
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -240,8 +440,6 @@ export default function FilteredOrdersByExistingMobiles() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    localStorage.setItem('selectedOrderIds', JSON.stringify(selectedOrderIds));
-    setSelectedOrderIds([]);
   };
 
   const handleCheckboxChange = (orderId: string) => {
@@ -252,7 +450,6 @@ export default function FilteredOrdersByExistingMobiles() {
     );
   };
   
-
   const handleSelectAll = () => {
     const allIds = filteredOrders.map(o => o.ORDER_ID);
     setSelectedOrderIds(prev => (prev.length === allIds.length ? [] : allIds));
@@ -260,11 +457,9 @@ export default function FilteredOrdersByExistingMobiles() {
   
   const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
 
-
   if (existingMobiles.length === 0) {
     return <p className="mt-[7rem] ml-12">No existing mobile numbers found.</p>;
   }
-
 
   return (
     <div className="p-16 mt-[4rem] mb-8">
@@ -281,6 +476,7 @@ export default function FilteredOrdersByExistingMobiles() {
         </button>
         <button
             onClick={() => {
+            setShowResultModal(false);
             handleRenew();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded"
