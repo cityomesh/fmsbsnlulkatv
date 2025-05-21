@@ -96,9 +96,7 @@ export default function FilteredOrdersByExistingMobiles() {
   }, []);
 
   useEffect(() => {
-    if (existingMobiles.length > 0) {
-      fetchFilteredOrders();
-    }
+    if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles]);
 
   async function fetchFilteredOrders() {
@@ -142,6 +140,8 @@ export default function FilteredOrdersByExistingMobiles() {
     }
   }
   
+  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
