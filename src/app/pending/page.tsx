@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo , useCallback} from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
@@ -93,9 +93,11 @@ export default function FilteredOrdersByExistingMobiles() {
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
 
-      const previousOrders: Order[] = JSON.parse(localStorage.getItem("filteredOrders") || "[]");
+      const cached = localStorage.getItem("filteredOrders");
+      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
 
       const combined = [...previousOrders, ...filteredWithCDN];
+
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
@@ -105,24 +107,30 @@ export default function FilteredOrdersByExistingMobiles() {
     } catch (error) {
       console.error("Fetch error:", error);
       const cached = localStorage.getItem("filteredOrders");
-      setOrders(cached ? JSON.parse(cached) : []);
+      if (cached) {
+        setOrders(JSON.parse(cached));
+      } else {
+        setOrders([]);
+      }
     } finally {
       setLoading(false);
     }
   }, [existingMobiles]);
+
+  const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
     const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
 
-    if (stored) setExistingMobiles(JSON.parse(stored));
-    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+    if (stored) setExistingMobiles(JSON.parse(stored));
 
     fetchFilteredOrders();
   }, []);
-
+  
   useEffect(() => {
     if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles, fetchFilteredOrders]);
