@@ -79,6 +79,7 @@ export default function FilteredOrdersByExistingMobiles() {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
+      const token = `Bearer ${localStorage.getItem("access_token")}`;
       if (!response.ok) throw new Error("Failed to fetch orders");
 
       const data = await response.json();
@@ -117,7 +118,6 @@ export default function FilteredOrdersByExistingMobiles() {
     }
   }, [existingMobiles]);
 
-  // const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
