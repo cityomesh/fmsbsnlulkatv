@@ -99,7 +99,7 @@ export default function FilteredOrdersByExistingMobiles() {
     if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles]);
 
-  const fetchFilteredOrders = async () => {
+  async function fetchFilteredOrders() {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
@@ -138,8 +138,10 @@ export default function FilteredOrdersByExistingMobiles() {
     } finally {
       setLoading(false);
     }
-  };
+  }
   
+  const token = `Bearer ${localStorage.getItem("access_token")}`;
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
