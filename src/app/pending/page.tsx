@@ -1,10 +1,8 @@
 "use client";
-
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
-// Updated Order type to include CDN_LABEL
 type Order = {
   ORDER_ID: string;
   ORDER_DATE: string;
@@ -13,6 +11,7 @@ type Order = {
   BA_CODE: string;
   RMN?: string;
   PHONE_NO?: string;
+  [key: string]: string | number | boolean | undefined;
   EMAIL?: string;
   ADDRESS?: string;
   CUST_ACCNT_NO?: string;
@@ -27,6 +26,7 @@ type Order = {
   USERNAME?: string;
   EXCHANGE_CODE?: string;
   IPTV_STATUS?: string;
+
   fname?: string;
   lname?: string;
   mname?: string;
@@ -57,18 +57,16 @@ type Order = {
   iptvuser_password?: string;
   cdn_code?: string;
   warranty_end_date?: string;
-  CDN_LABEL?: string; // ✅ Added here
 };
 
 export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [popupData, setPopupData] = useState<Order | null>(null);
-
   const selectedBA = "";
   const selectedOD = "";
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [popupData, setPopupData] = useState<Order | null>(null);
 
   const handleViewClick = (order: Order) => setPopupData(order);
   const closePopup = () => setPopupData(null);
@@ -76,11 +74,8 @@ export default function FilteredOrdersByExistingMobiles() {
   const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
-      let token = "";
-      if (typeof window !== "undefined") {
-        const accessToken = localStorage.getItem("access_token");
-        token = `Bearer ${accessToken}`;
-      }
+      const accessToken = localStorage.getItem("access_token");
+      const token = `Bearer ${accessToken}`;
 
       const response = await fetch("/api/fetchIptvOrders", {
         method: "POST",
@@ -95,40 +90,29 @@ export default function FilteredOrdersByExistingMobiles() {
       const data = await response.json();
       const allOrders: Order[] = data.orders || [];
 
-      // ✅ Filter based on existingMobiles
       const filtered = allOrders.filter((order) =>
         existingMobiles.includes(order.RMN || order.PHONE_NO || "")
       );
 
-      // ✅ Add CDN_LABEL safely as a string
       const filteredWithCDN = filtered.map((order) => ({
         ...order,
-        CDN_LABEL: String(circleToCdnMap[order.CIRCLE_CODE] || "CD1"),
+        CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
 
-      if (typeof window !== "undefined") {
-        const cached = localStorage.getItem("filteredOrders");
-        const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
+      const cached = localStorage.getItem("filteredOrders");
+      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
 
-        const combined = [...previousOrders, ...filteredWithCDN];
+      const combined = [...previousOrders, ...filteredWithCDN];
+      const uniqueOrders = Array.from(
+        new Map(combined.map((order) => [order.ORDER_ID, order])).values()
+      );
 
-        const uniqueOrders = Array.from(
-          new Map(combined.map((order) => [order.ORDER_ID, order])).values()
-        );
-
-        setOrders(uniqueOrders);
-        localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
-      } else {
-        setOrders(filteredWithCDN);
-      }
+      setOrders(uniqueOrders);
+      localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
     } catch (error) {
       console.error("Fetch error:", error);
-      if (typeof window !== "undefined") {
-        const cached = localStorage.getItem("filteredOrders");
-        setOrders(cached ? JSON.parse(cached) : []);
-      } else {
-        setOrders([]);
-      }
+      const cached = localStorage.getItem("filteredOrders");
+      setOrders(cached ? JSON.parse(cached) : []);
     } finally {
       setLoading(false);
     }
@@ -139,32 +123,29 @@ export default function FilteredOrdersByExistingMobiles() {
       const stored = localStorage.getItem("existingMobiles");
       const savedIds = localStorage.getItem("selectedOrderIds");
       const cachedOrders = localStorage.getItem("filteredOrders");
-
+  
       if (cachedOrders) setOrders(JSON.parse(cachedOrders));
       if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
       if (stored) setExistingMobiles(JSON.parse(stored));
     }
   }, []);
-
+  
   useEffect(() => {
     if (existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
   }, [existingMobiles, fetchFilteredOrders]);
+  
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      const orderDateOnly =
-        typeof order.ORDER_DATE === "string"
-          ? order.ORDER_DATE.split(" ")[0]
-          : "";
+      const orderDateOnly = order.ORDER_DATE.split(" ")[0];
       const matchBA = selectedBA ? order.BA_CODE === selectedBA : true;
       const matchOD = selectedOD ? orderDateOnly === selectedOD : true;
       return matchBA && matchOD;
     });
   }, [orders, selectedBA, selectedOD]);
 
-  
   const baCodeDetailsMap: {
     [key: string]: {
       sublocationCode: string;
