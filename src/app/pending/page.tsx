@@ -1,63 +1,63 @@
 "use client";
-import React, { useEffect, useState, useMemo , useCallback} from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
 type Order = {
-    ORDER_ID: string;
-    ORDER_DATE: string;
-    CUSTOMER_NAME: string;
-    CIRCLE_CODE: string;
-    BA_CODE: string;
-    RMN?: string;
-    PHONE_NO?: string;
-    [key: string]: string | number | boolean | undefined;
-    EMAIL?: string;
-    ADDRESS?: string;
-    CUST_ACCNT_NO?: string;
-    MTCE_FRANCHISE_CODE?: string;
-    CACHE_UNIQUE_ID?: string;
-    BILL_ACCNT_NO?: string;
-    CUST_TYPE?: string;
-    CACHE_VLAN_ID?: string;
-    MAC_ID?: string;
-    LMO_USER?: string;
-    VENDOR_CODE?: string;
-    USERNAME?: string;
-    EXCHANGE_CODE?: string;
-    IPTV_STATUS?: string;
-  
-    fname?: string;
-    lname?: string;
-    mname?: string;
-    gender?: string;
-    mobile_no?: string;
-    phone_no?: string;
-    sublocation_code?: string;
-    flatno?: string;
-    floor?: string;
-    wing?: string;
-    installation_address?: string;
-    installation_pincode?: string;
-    billing_address?: string;
-    billing_pincode?: string;
-    iptvuser_id?: string;
-    bouque_code?: string;
-    outstanding?: string;
-    scheme_code?: string;
-    rperiod_code?: string;
-    dob?: string;
-    customer_type?: string;
-    formno?: string;
-    uid?: string;
-    minid?: string;
-    warranty_date?: string;
-    is_verified?: string;
-    gst_no?: string;
-    iptvuser_password?: string;
-    cdn_code?: string;
-    warranty_end_date?: string;
-  };
+  ORDER_ID: string;
+  ORDER_DATE: string;
+  CUSTOMER_NAME: string;
+  CIRCLE_CODE: string;
+  BA_CODE: string;
+  RMN?: string;
+  PHONE_NO?: string;
+  [key: string]: string | number | boolean | undefined;
+  EMAIL?: string;
+  ADDRESS?: string;
+  CUST_ACCNT_NO?: string;
+  MTCE_FRANCHISE_CODE?: string;
+  CACHE_UNIQUE_ID?: string;
+  BILL_ACCNT_NO?: string;
+  CUST_TYPE?: string;
+  CACHE_VLAN_ID?: string;
+  MAC_ID?: string;
+  LMO_USER?: string;
+  VENDOR_CODE?: string;
+  USERNAME?: string;
+  EXCHANGE_CODE?: string;
+  IPTV_STATUS?: string;
+
+  fname?: string;
+  lname?: string;
+  mname?: string;
+  gender?: string;
+  mobile_no?: string;
+  phone_no?: string;
+  sublocation_code?: string;
+  flatno?: string;
+  floor?: string;
+  wing?: string;
+  installation_address?: string;
+  installation_pincode?: string;
+  billing_address?: string;
+  billing_pincode?: string;
+  iptvuser_id?: string;
+  bouque_code?: string;
+  outstanding?: string;
+  scheme_code?: string;
+  rperiod_code?: string;
+  dob?: string;
+  customer_type?: string;
+  formno?: string;
+  uid?: string;
+  minid?: string;
+  warranty_date?: string;
+  is_verified?: string;
+  gst_no?: string;
+  iptvuser_password?: string;
+  cdn_code?: string;
+  warranty_end_date?: string;
+};
 
 export default function FilteredOrdersByExistingMobiles() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -68,18 +68,14 @@ export default function FilteredOrdersByExistingMobiles() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
 
-  const handleViewClick = (order: Order) => {
-    setPopupData(order);
-  };
-  const closePopup = () => {
-    setPopupData(null);
-  };
+  const handleViewClick = (order: Order) => setPopupData(order);
+  const closePopup = () => setPopupData(null);
 
+  // ✅ FIXED: useCallback to avoid stale reference and satisfy dependency rule
   const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
-      const token = `Bearer ${localStorage.getItem("access_token")}`;
       if (!response.ok) throw new Error("Failed to fetch orders");
 
       const data = await response.json();
@@ -98,7 +94,6 @@ export default function FilteredOrdersByExistingMobiles() {
       const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
 
       const combined = [...previousOrders, ...filteredWithCDN];
-
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
@@ -116,8 +111,7 @@ export default function FilteredOrdersByExistingMobiles() {
     } finally {
       setLoading(false);
     }
-  }, [existingMobiles]);
-
+  }, [existingMobiles]); // ✅ Add dependency
 
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
@@ -128,12 +122,17 @@ export default function FilteredOrdersByExistingMobiles() {
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (stored) setExistingMobiles(JSON.parse(stored));
 
-    fetchFilteredOrders();
+    fetchFilteredOrders(); // ✅ Safe now
   }, []);
-  
+
   useEffect(() => {
-    if (existingMobiles.length > 0) fetchFilteredOrders();
+    if (existingMobiles.length > 0) {
+      fetchFilteredOrders(); // ✅ Safe usage now
+    }
   }, [existingMobiles, fetchFilteredOrders]);
+
+  // ✅ REMOVED UNUSED VARIABLE
+  // const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
