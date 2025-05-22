@@ -71,68 +71,62 @@ export default function FilteredOrdersByExistingMobiles() {
   const handleViewClick = (order: Order) => setPopupData(order);
   const closePopup = () => setPopupData(null);
 
-  // ✅ FIXED: useCallback to avoid stale reference and satisfy dependency rule
   const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
       if (!response.ok) throw new Error("Failed to fetch orders");
-
+  
       const data = await response.json();
       const allOrders: Order[] = data.orders || [];
-
+  
       const filtered = allOrders.filter((order) =>
         existingMobiles.includes(order.RMN || order.PHONE_NO || "")
       );
-
+  
       const filteredWithCDN = filtered.map((order) => ({
         ...order,
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
-
+  
       const cached = localStorage.getItem("filteredOrders");
       const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-
+  
       const combined = [...previousOrders, ...filteredWithCDN];
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
-
+  
       setOrders(uniqueOrders);
       localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
     } catch (error) {
       console.error("Fetch error:", error);
       const cached = localStorage.getItem("filteredOrders");
-      if (cached) {
-        setOrders(JSON.parse(cached));
-      } else {
-        setOrders([]);
-      }
+      setOrders(cached ? JSON.parse(cached) : []);
     } finally {
       setLoading(false);
     }
-  }, [existingMobiles]); // ✅ Add dependency
+  }, [existingMobiles]);
+  
 
   useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem("selectedOrderIds");
-    const cachedOrders = localStorage.getItem("filteredOrders");
-
-    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
-    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (stored) setExistingMobiles(JSON.parse(stored));
-
-    fetchFilteredOrders(); // ✅ Safe now
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("existingMobiles");
+      const savedIds = localStorage.getItem("selectedOrderIds");
+      const cachedOrders = localStorage.getItem("filteredOrders");
+  
+      if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+      if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+      if (stored) setExistingMobiles(JSON.parse(stored));
+    }
   }, []);
-
+  
   useEffect(() => {
     if (existingMobiles.length > 0) {
-      fetchFilteredOrders(); // ✅ Safe usage now
+      fetchFilteredOrders();
     }
   }, [existingMobiles, fetchFilteredOrders]);
-
-  // ✅ REMOVED UNUSED VARIABLE
-  // const token = `Bearer ${localStorage.getItem("access_token")}`;
+  
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
