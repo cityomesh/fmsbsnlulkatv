@@ -70,6 +70,7 @@ export default function FilteredOrdersByExistingMobiles() {
 
   const handleViewClick = (order: Order) => setPopupData(order);
   const closePopup = () => setPopupData(null);
+  const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
