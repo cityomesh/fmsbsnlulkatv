@@ -69,7 +69,7 @@ const Header = () => {
             <Link href="/view-cron-logs" className="hover:text-blue-400">
               Cron Logs
             </Link>
-            <Link href="/pending" className="hover:text-blue-400">
+            <Link href="/" className="hover:text-blue-400">
               Pending Orders
             </Link>
             <Link href="/syncnow" className="hover:text-blue-400">
