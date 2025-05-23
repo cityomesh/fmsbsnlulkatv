@@ -118,21 +118,18 @@ type Order = {
   
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem('selectedOrderIds');
+    const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
   
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (stored) setExistingMobiles(JSON.parse(stored));
-  
-    fetchFilteredOrders();
   }, []);
   
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const token = `Bearer ${localStorage.getItem("access_token")}`;
+    if (existingMobiles.length > 0) {
+      fetchFilteredOrders();
     }
-    if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles, fetchFilteredOrders]);
   
 
