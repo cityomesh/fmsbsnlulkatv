@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
@@ -75,31 +75,7 @@ const PendingPage = () => {
     setPopupData(null);
   };
 
-    useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem('selectedOrderIds');
-    const cachedOrders = localStorage.getItem("filteredOrders");
-
-    if (cachedOrders) {
-        setOrders(JSON.parse(cachedOrders));
-      }
-    
-    if (savedIds) {
-      setSelectedOrderIds(JSON.parse(savedIds));
-    }
-
-    if (stored) setExistingMobiles(JSON.parse(stored));
-
-    const cached = localStorage.getItem("filteredOrders");
-    if (cached) setOrders(JSON.parse(cached));
-    fetchFilteredOrders();
-  }, []);
-
-  useEffect(() => {
-    if (existingMobiles.length > 0) fetchFilteredOrders();
-  }, [existingMobiles]);
-
-  async function fetchFilteredOrders() {
+  const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
@@ -138,7 +114,24 @@ const PendingPage = () => {
     } finally {
       setLoading(false);
     }
-  }
+  }, [existingMobiles]); // <- important dependency
+  
+  
+  useEffect(() => {
+    const stored = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem("selectedOrderIds");
+    const cachedOrders = localStorage.getItem("filteredOrders");
+  
+    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+    if (stored) setExistingMobiles(JSON.parse(stored));
+  
+    fetchFilteredOrders();
+  }, []);
+  
+  useEffect(() => {
+    if (existingMobiles.length > 0) fetchFilteredOrders();
+  }, [existingMobiles, fetchFilteredOrders]);
   
   const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
 
