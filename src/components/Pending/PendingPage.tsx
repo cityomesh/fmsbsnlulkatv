@@ -59,7 +59,7 @@ type Order = {
     warranty_end_date?: string;
   };
 
-  const PendingPage = () => {
+const PendingPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
