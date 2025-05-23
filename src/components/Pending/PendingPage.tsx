@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
@@ -75,7 +75,31 @@ type Order = {
     setPopupData(null);
   };
 
-  const fetchFilteredOrders = useCallback(async () => {
+    useEffect(() => {
+    const stored = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem('selectedOrderIds');
+    const cachedOrders = localStorage.getItem("filteredOrders");
+
+    if (cachedOrders) {
+        setOrders(JSON.parse(cachedOrders));
+      }
+    
+    if (savedIds) {
+      setSelectedOrderIds(JSON.parse(savedIds));
+    }
+
+    if (stored) setExistingMobiles(JSON.parse(stored));
+
+    const cached = localStorage.getItem("filteredOrders");
+    if (cached) setOrders(JSON.parse(cached));
+    fetchFilteredOrders();
+  }, []);
+
+  useEffect(() => {
+    if (existingMobiles.length > 0) fetchFilteredOrders();
+  }, [existingMobiles]);
+
+  async function fetchFilteredOrders() {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
@@ -106,28 +130,18 @@ type Order = {
     } catch (error) {
       console.error("Fetch error:", error);
       const cached = localStorage.getItem("filteredOrders");
-      setOrders(cached ? JSON.parse(cached) : []);
+      if (cached) {
+        setOrders(JSON.parse(cached));
+      } else {
+        setOrders([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [existingMobiles]); 
+  }
+  
+  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
 
-  useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem("selectedOrderIds");
-    const cachedOrders = localStorage.getItem("filteredOrders");
-  
-    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
-    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (stored) setExistingMobiles(JSON.parse(stored));
-  }, []); 
-  
-  useEffect(() => {
-    if (existingMobiles.length > 0) {
-      fetchFilteredOrders();
-    }
-  }, [existingMobiles, fetchFilteredOrders]);  
-  
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
