@@ -114,7 +114,7 @@ const PendingPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [existingMobiles]); // <- important dependency
+  }, [existingMobiles]);
   
   
   useEffect(() => {
@@ -125,16 +125,12 @@ const PendingPage = () => {
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (stored) setExistingMobiles(JSON.parse(stored));
-  
-    fetchFilteredOrders();
   }, []);
   
   useEffect(() => {
     if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles, fetchFilteredOrders]);
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
-
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
