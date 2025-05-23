@@ -115,7 +115,6 @@ type Order = {
       setLoading(false);
     }
   }, [existingMobiles]);
-
   
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
@@ -130,6 +129,9 @@ type Order = {
   }, []);
   
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = `Bearer ${localStorage.getItem("access_token")}`;
+    }
     if (existingMobiles.length > 0) fetchFilteredOrders();
   }, [existingMobiles, fetchFilteredOrders]);
   
