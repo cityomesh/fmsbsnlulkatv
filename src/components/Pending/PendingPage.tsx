@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "../../components/Header";
 import { circleToCdnMap } from "../../components/constants/cdnMap";
 
@@ -75,56 +75,32 @@ type Order = {
     setPopupData(null);
   };
 
-    useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem('selectedOrderIds');
-    const cachedOrders = localStorage.getItem("filteredOrders");
-
-    if (cachedOrders) {
-        setOrders(JSON.parse(cachedOrders));
-      }
-    
-    if (savedIds) {
-      setSelectedOrderIds(JSON.parse(savedIds));
-    }
-
-    if (stored) setExistingMobiles(JSON.parse(stored));
-
-    const cached = localStorage.getItem("filteredOrders");
-    if (cached) setOrders(JSON.parse(cached));
-    fetchFilteredOrders();
-  }, []);
-
-  useEffect(() => {
-    if (existingMobiles.length > 0) fetchFilteredOrders();
-  }, [existingMobiles]);
-
-  async function fetchFilteredOrders() {
+  const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
       if (!response.ok) throw new Error("Failed to fetch orders");
-  
+
       const data = await response.json();
       const allOrders: Order[] = data.orders || [];
-  
+
       const filtered = allOrders.filter((order) =>
         existingMobiles.includes(order.RMN || order.PHONE_NO || "")
       );
-  
+
       const filteredWithCDN = filtered.map((order) => ({
         ...order,
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
-  
+
       const cached = localStorage.getItem("filteredOrders");
       const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-  
+
       const combined = [...previousOrders, ...filteredWithCDN];
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
-  
+
       setOrders(uniqueOrders);
       localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
     } catch (error) {
@@ -138,9 +114,25 @@ type Order = {
     } finally {
       setLoading(false);
     }
-  }
+  }, [existingMobiles]);
+
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
+  useEffect(() => {
+    const stored = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem('selectedOrderIds');
+    const cachedOrders = localStorage.getItem("filteredOrders");
+  
+    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+    if (stored) setExistingMobiles(JSON.parse(stored));
+  
+    fetchFilteredOrders();
+  }, []);
+  
+  useEffect(() => {
+    if (existingMobiles.length > 0) fetchFilteredOrders();
+  }, [existingMobiles, fetchFilteredOrders]);
+  
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
