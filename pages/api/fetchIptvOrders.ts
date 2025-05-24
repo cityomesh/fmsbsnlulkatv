@@ -21,6 +21,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // ⏱️ 15 seconds
+
   try {
     const response = await fetch('https://fms.bsnl.in/fmswebservices/rest/iptv/getiptvorders', {
       method: 'POST',
@@ -29,7 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'EKEY': 'b28272183c64fcb45b11d9098a7dd97df51f89bc1bae9448e4126258fd9446d1',
       },
       body: JSON.stringify({ vendorCode: 'IPTV_ULKA_TV', iptvStatus: 'Open' }),
+      signal: controller.signal, // 🟡 Pass the abort signal here
     });
+
+    clearTimeout(timeout); // ✅ Clear timeout if fetch completes in time
 
     if (!response.ok) throw new Error(`Failed to fetch orders: ${response.statusText}`);
 
@@ -53,12 +59,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     res.status(200).json({ orders: sortedOrders });
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Error fetching IPTV orders:', error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'An unknown error occurred' });
+
+    // Custom message for timeout error
+    if (error.name === 'AbortError') {
+      return res.status(504).json({ error: 'Request timed out after 15 seconds' });
     }
+
+    res.status(500).json({ error: error.message || 'An unknown error occurred' });
   }
 }
