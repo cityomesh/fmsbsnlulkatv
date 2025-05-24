@@ -26,7 +26,7 @@ type Order = {
     USERNAME?: string;
     EXCHANGE_CODE?: string;
     IPTV_STATUS?: string;
-  
+
     fname?: string;
     lname?: string;
     mname?: string;
@@ -115,24 +115,23 @@ type Order = {
       setLoading(false);
     }
   }, [existingMobiles]);
-  
+
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
     const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
-  
+
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (stored) setExistingMobiles(JSON.parse(stored));
   }, []);
-  
+
   useEffect(() => {
     if (existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
   }, [existingMobiles, fetchFilteredOrders]);
-  
-  const token = `Bearer ${localStorage.getItem("access_token")}`;
+
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -188,7 +187,7 @@ type Order = {
     "CDP": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
     "Nalgonda": { sublocationCode: "S2110S000001", cdnCode: "CDN106" }
   };
-  
+
   const downloadCSV = () => {
     const headers = [
       "fname", "lname", "mname", "gender", "mobile_no", "phone_no", "email",
@@ -199,11 +198,11 @@ type Order = {
       "warranty_date", "is_verified", "gst_no", "iptvuser_password",
       "cdn_code", "warranty_end_date"
     ];
-  
+
     const selectedOrders = filteredOrders.filter(order =>
       selectedOrderIds.includes(order.ORDER_ID)
     );
-  
+
     const rows = selectedOrders.map(order => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
@@ -246,11 +245,11 @@ type Order = {
         "", // warranty_end_date
       ];
     });
-  
+
     const csvContent = [headers, ...rows]
       .map(row => row.map(item => `"${item}"`).join(","))
       .join("\n");
-  
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -268,12 +267,12 @@ type Order = {
         : [...prev, orderId]
     );
   };
-  
+
   const handleSelectAll = () => {
     const allIds = filteredOrders.map(o => o.ORDER_ID);
     setSelectedOrderIds(prev => (prev.length === allIds.length ? [] : allIds));
   };
-  
+
   const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
 
   if (existingMobiles.length === 0) {
