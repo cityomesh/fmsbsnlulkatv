@@ -75,62 +75,61 @@ type Order = {
     setPopupData(null);
   };
 
-  const fetchFilteredOrders = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
-      if (!response.ok) throw new Error("Failed to fetch orders");
-
-      const data = await response.json();
-      const allOrders: Order[] = data.orders || [];
-
-      const filtered = allOrders.filter((order) =>
-        existingMobiles.includes(order.RMN || order.PHONE_NO || "")
-      );
-
-      const filteredWithCDN = filtered.map((order) => ({
-        ...order,
-        CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
-      }));
-
-      const cached = localStorage.getItem("filteredOrders");
-      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-
-      const combined = [...previousOrders, ...filteredWithCDN];
-      const uniqueOrders = Array.from(
-        new Map(combined.map((order) => [order.ORDER_ID, order])).values()
-      );
-
-      setOrders(uniqueOrders);
-      localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
-    } catch (error) {
-      console.error("Fetch error:", error);
-      const cached = localStorage.getItem("filteredOrders");
-      if (cached) {
-        setOrders(JSON.parse(cached));
-      } else {
-        setOrders([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [existingMobiles]);
-  
   useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
+    const storedMobiles = localStorage.getItem("existingMobiles");
     const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
   
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (stored) setExistingMobiles(JSON.parse(stored));
+    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
   }, []);
   
   useEffect(() => {
     if (existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
-  }, [existingMobiles, fetchFilteredOrders]);
+  }, [existingMobiles]);
+  
+  const fetchFilteredOrders = useCallback(async () => {
+    try {
+      const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to fetch orders");
+  
+      const data = await response.json();
+      const allOrders: Order[] = data.orders || [];
+  
+      const filtered = allOrders.filter((order) =>
+        existingMobiles.includes(order.RMN || order.PHONE_NO || "")
+      );
+  
+      const filteredWithCDN = filtered.map((order) => ({
+        ...order,
+        CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
+      }));
+  
+      const cached = localStorage.getItem("filteredOrders");
+      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
+  
+      const combined = [...previousOrders, ...filteredWithCDN];
+  
+      const uniqueOrders = Array.from(
+        new Map(combined.map((order) => [order.ORDER_ID, order])).values()
+      );
+  
+      setOrders(uniqueOrders);
+      localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
+    } catch (error) {
+      console.error("Fetch error:", error);
+
+      const cached = localStorage.getItem("filteredOrders");
+      if (cached) {
+        setOrders(JSON.parse(cached));
+      } else {
+        setOrders([]);
+      }
+    }
+  }, [existingMobiles]);  
   
   const token = `Bearer ${localStorage.getItem("access_token")}`;
 
@@ -262,11 +261,17 @@ type Order = {
   };
 
   const handleCheckboxChange = (orderId: string) => {
-    setSelectedOrderIds((prev) =>
-      prev.includes(orderId)
-        ? prev.filter((id) => id !== orderId)
-        : [...prev, orderId]
-    );
+    const updated = selectedOrderIds.includes(orderId)
+      ? selectedOrderIds.filter((id) => id !== orderId)
+      : [...selectedOrderIds, orderId];
+  
+    setSelectedOrderIds(updated);
+    localStorage.setItem("selectedOrderIds", JSON.stringify(updated));
+  };
+  
+  const updateExistingMobiles = (mobiles: string[]) => {
+    setExistingMobiles(mobiles);
+    localStorage.setItem("existingMobiles", JSON.stringify(mobiles));
   };
   
   const handleSelectAll = () => {
