@@ -26,7 +26,7 @@ type Order = {
     USERNAME?: string;
     EXCHANGE_CODE?: string;
     IPTV_STATUS?: string;
-
+  
     fname?: string;
     lname?: string;
     mname?: string;
@@ -75,65 +75,63 @@ type Order = {
     setPopupData(null);
   };
 
-  const fetchFilteredOrders = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
-      if (!response.ok) throw new Error("Failed to fetch orders");
-
-      const data = await response.json();
-      const allOrders: Order[] = data.orders || [];
-
-      const filtered = allOrders.filter((order) =>
-        existingMobiles.includes(order.RMN || order.PHONE_NO || "")
-      );
-
-      const filteredWithCDN = filtered.map((order) => ({
-        ...order,
-        CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
-      }));
-
-      const cached = localStorage.getItem("filteredOrders");
-      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-
-      const combined = [...previousOrders, ...filteredWithCDN];
-      const uniqueOrders = Array.from(
-        new Map(combined.map((order) => [order.ORDER_ID, order])).values()
-      );
-
-      setOrders(uniqueOrders);
-      localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
-    } catch (error) {
-      console.error("Fetch error:", error);
-      const cached = localStorage.getItem("filteredOrders");
-      if (cached) {
-        setOrders(JSON.parse(cached));
-      } else {
-        setOrders([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [existingMobiles]);
-
   useEffect(() => {
-    const stored = localStorage.getItem("existingMobiles");
+    const storedMobiles = localStorage.getItem("existingMobiles");
     const savedIds = localStorage.getItem("selectedOrderIds");
     const cachedOrders = localStorage.getItem("filteredOrders");
   
     if (cachedOrders) setOrders(JSON.parse(cachedOrders));
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (stored) setExistingMobiles(JSON.parse(stored));
+    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
   }, []);
   
   useEffect(() => {
     if (existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
-  }, [existingMobiles, fetchFilteredOrders]); // ✅ this is correct
+  }, [existingMobiles]);
   
+  const fetchFilteredOrders = useCallback(async () => {
+    try {
+      const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to fetch orders");
+  
+      const data = await response.json();
+      const allOrders: Order[] = data.orders || [];
+  
+      const filtered = allOrders.filter((order) =>
+        existingMobiles.includes(order.RMN || order.PHONE_NO || "")
+      );
+  
+      const filteredWithCDN = filtered.map((order) => ({
+        ...order,
+        CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
+      }));
+  
+      const cached = localStorage.getItem("filteredOrders");
+      const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
+  
+      const combined = [...previousOrders, ...filteredWithCDN];
+  
+      const uniqueOrders = Array.from(
+        new Map(combined.map((order) => [order.ORDER_ID, order])).values()
+      );
+  
+      setOrders(uniqueOrders);
+      localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
+    } catch (error) {
+      console.error("Fetch error:", error);
 
-  const token = `Bearer ${localStorage.getItem("access_token")}`;
+      const cached = localStorage.getItem("filteredOrders");
+      if (cached) {
+        setOrders(JSON.parse(cached));
+      } else {
+        setOrders([]);
+      }
+    }
+  }, [existingMobiles]);  
+  
+  // const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -189,7 +187,7 @@ type Order = {
     "CDP": { sublocationCode: "S2101S000001", cdnCode: "CDN113" },
     "Nalgonda": { sublocationCode: "S2110S000001", cdnCode: "CDN106" }
   };
-
+  
   const downloadCSV = () => {
     const headers = [
       "fname", "lname", "mname", "gender", "mobile_no", "phone_no", "email",
@@ -200,11 +198,11 @@ type Order = {
       "warranty_date", "is_verified", "gst_no", "iptvuser_password",
       "cdn_code", "warranty_end_date"
     ];
-
+  
     const selectedOrders = filteredOrders.filter(order =>
       selectedOrderIds.includes(order.ORDER_ID)
     );
-
+  
     const rows = selectedOrders.map(order => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
@@ -247,11 +245,11 @@ type Order = {
         "", // warranty_end_date
       ];
     });
-
+  
     const csvContent = [headers, ...rows]
       .map(row => row.map(item => `"${item}"`).join(","))
       .join("\n");
-
+  
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -263,18 +261,24 @@ type Order = {
   };
 
   const handleCheckboxChange = (orderId: string) => {
-    setSelectedOrderIds((prev) =>
-      prev.includes(orderId)
-        ? prev.filter((id) => id !== orderId)
-        : [...prev, orderId]
-    );
+    const updated = selectedOrderIds.includes(orderId)
+      ? selectedOrderIds.filter((id) => id !== orderId)
+      : [...selectedOrderIds, orderId];
+  
+    setSelectedOrderIds(updated);
+    localStorage.setItem("selectedOrderIds", JSON.stringify(updated));
   };
-
+  
+  const updateExistingMobiles = (mobiles: string[]) => {
+    setExistingMobiles(mobiles);
+    localStorage.setItem("existingMobiles", JSON.stringify(mobiles));
+  };
+  
   const handleSelectAll = () => {
     const allIds = filteredOrders.map(o => o.ORDER_ID);
     setSelectedOrderIds(prev => (prev.length === allIds.length ? [] : allIds));
   };
-
+  
   const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
 
   if (existingMobiles.length === 0) {
