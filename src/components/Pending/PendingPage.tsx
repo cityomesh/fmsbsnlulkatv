@@ -62,7 +62,7 @@ type Order = {
  const PendingPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
-  const loading = false;
+  const [loading, setLoading] = useState(false);
   const selectedBA = "";
   const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -75,58 +75,63 @@ type Order = {
     setPopupData(null);
   };
 
-  
   const fetchFilteredOrders = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
       if (!response.ok) throw new Error("Failed to fetch orders");
-  
+
       const data = await response.json();
       const allOrders: Order[] = data.orders || [];
-  
+
       const filtered = allOrders.filter((order) =>
         existingMobiles.includes(order.RMN || order.PHONE_NO || "")
       );
-  
+
       const filteredWithCDN = filtered.map((order) => ({
         ...order,
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
-  
+
       const cached = localStorage.getItem("filteredOrders");
       const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-  
+
       const combined = [...previousOrders, ...filteredWithCDN];
-  
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
-  
+
       setOrders(uniqueOrders);
       localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
     } catch (error) {
       console.error("Fetch error:", error);
-
       const cached = localStorage.getItem("filteredOrders");
       if (cached) {
         setOrders(JSON.parse(cached));
       } else {
         setOrders([]);
       }
+    } finally {
+      setLoading(false);
     }
-  }, [existingMobiles]);  
+  }, [existingMobiles]);
   
   useEffect(() => {
-    const storedMobiles = localStorage.getItem("existingMobiles");
-    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
+    const stored = localStorage.getItem("existingMobiles");
+    const savedIds = localStorage.getItem("selectedOrderIds");
+    const cachedOrders = localStorage.getItem("filteredOrders");
+  
+    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
+    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
+    if (stored) setExistingMobiles(JSON.parse(stored));
   }, []);
   
   useEffect(() => {
     if (existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
-  }, [existingMobiles]);
-
+  }, [existingMobiles, fetchFilteredOrders]);
+  
   const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const filteredOrders = useMemo(() => {
@@ -257,12 +262,11 @@ type Order = {
   };
 
   const handleCheckboxChange = (orderId: string) => {
-    const updated = selectedOrderIds.includes(orderId)
-      ? selectedOrderIds.filter((id) => id !== orderId)
-      : [...selectedOrderIds, orderId];
-  
-    setSelectedOrderIds(updated);
-    localStorage.setItem("selectedOrderIds", JSON.stringify(updated));
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId)
+        ? prev.filter((id) => id !== orderId)
+        : [...prev, orderId]
+    );
   };
   
   const handleSelectAll = () => {
