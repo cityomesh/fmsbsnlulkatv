@@ -108,15 +108,14 @@ const IPTVOrdersPage = () => {
   
   
   useEffect(() => {
-    loadCachedOrders(); // ⏱️ Load instantly
-    fetchOrders();      // 🔁 Refresh in background
+    fetchOrders();
   }, []);
-  
+
   useEffect(() => {
     const uniqueOrderDates = Array.from(new Set(orders.map(o => o.ORDER_DATE)));
     setOrderDates(uniqueOrderDates);
   }, [orders]);
-  
+
   useEffect(() => {
     const storedMobiles = localStorage.getItem("existingMobiles");
     if (storedMobiles) {
@@ -124,27 +123,17 @@ const IPTVOrdersPage = () => {
     }
   }, []);
   
-  const loadCachedOrders = () => {
-    const cachedData = localStorage.getItem("iptvOrders");
-    if (cachedData) {
-      const cachedOrders: Order[] = JSON.parse(cachedData);
-      setOrders(cachedOrders); // డేటా state లో పెడుతుంది
-      const uniqueBAs = Array.from(new Set(cachedOrders.map(o => o.BA_CODE)));
-      setBas(uniqueBAs);
-    }
-  };  
-  
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
       });
   
+      if (!response.ok) throw new Error("API fetch failed");
+  
       const data = await response.json();
+      
       let fetchedOrders: Order[] = data?.orders || [];
   
       fetchedOrders = fetchedOrders.map(order => ({
@@ -153,17 +142,26 @@ const IPTVOrdersPage = () => {
       }));
   
       localStorage.setItem("iptvOrders", JSON.stringify(fetchedOrders));
-  
       setOrders(fetchedOrders);
+  
       const uniqueBAs = Array.from(new Set(fetchedOrders.map(o => o.BA_CODE)));
       setBas(uniqueBAs);
     } catch (err) {
-      console.error("API failed");
+      console.error("API failed, loading from localStorage:", err);
+  
+      const cachedData = localStorage.getItem("iptvOrders");
+      if (cachedData) {
+        const cachedOrders: Order[] = JSON.parse(cachedData);
+        setOrders(cachedOrders);
+        const uniqueBAs = Array.from(new Set(cachedOrders.map(o => o.BA_CODE)));
+        setBas(uniqueBAs);
+      } else {
+        setError("No cached data found.");
+      }
     } finally {
       setLoading(false);
     }
   };
-  
   
   const handleViewClick = (order: Order) => {
     setPopupData(order);
