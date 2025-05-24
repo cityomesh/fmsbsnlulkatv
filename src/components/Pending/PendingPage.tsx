@@ -75,21 +75,6 @@ type Order = {
     setPopupData(null);
   };
 
-  useEffect(() => {
-    const storedMobiles = localStorage.getItem("existingMobiles");
-    const savedIds = localStorage.getItem("selectedOrderIds");
-    const cachedOrders = localStorage.getItem("filteredOrders");
-  
-    if (cachedOrders) setOrders(JSON.parse(cachedOrders));
-    if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
-    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
-  }, []);
-  
-  useEffect(() => {
-    if (existingMobiles.length > 0) {
-      fetchFilteredOrders();
-    }
-  }, [existingMobiles]);
   
   const fetchFilteredOrders = useCallback(async () => {
     try {
@@ -131,6 +116,17 @@ type Order = {
     }
   }, [existingMobiles]);  
   
+  useEffect(() => {
+    const storedMobiles = localStorage.getItem("existingMobiles");
+    if (storedMobiles) setExistingMobiles(JSON.parse(storedMobiles));
+  }, []);
+  
+  useEffect(() => {
+    if (existingMobiles.length > 0) {
+      fetchFilteredOrders();
+    }
+  }, [existingMobiles]);
+
   const token = `Bearer ${localStorage.getItem("access_token")}`;
 
   const filteredOrders = useMemo(() => {
