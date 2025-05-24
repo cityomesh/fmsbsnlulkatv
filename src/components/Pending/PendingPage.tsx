@@ -62,7 +62,7 @@ type Order = {
  const PendingPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const loading = false;
   const selectedBA = "";
   const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -267,11 +267,6 @@ type Order = {
   
     setSelectedOrderIds(updated);
     localStorage.setItem("selectedOrderIds", JSON.stringify(updated));
-  };
-  
-  const updateExistingMobiles = (mobiles: string[]) => {
-    setExistingMobiles(mobiles);
-    localStorage.setItem("existingMobiles", JSON.stringify(mobiles));
   };
   
   const handleSelectAll = () => {
