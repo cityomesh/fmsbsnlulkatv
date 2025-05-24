@@ -78,29 +78,38 @@ type Order = {
   const fetchFilteredOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/fetchIptvOrders", { method: "POST" });
+      const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use the token here
+  
+      const response = await fetch("/api/fetchIptvOrders", {
+        method: "POST",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      });
+  
       if (!response.ok) throw new Error("Failed to fetch orders");
-
+  
       const data = await response.json();
       const allOrders: Order[] = data.orders || [];
-
+  
       const filtered = allOrders.filter((order) =>
         existingMobiles.includes(order.RMN || order.PHONE_NO || "")
       );
-
+  
       const filteredWithCDN = filtered.map((order) => ({
         ...order,
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
-
+  
       const cached = localStorage.getItem("filteredOrders");
       const previousOrders: Order[] = cached ? JSON.parse(cached) : [];
-
+  
       const combined = [...previousOrders, ...filteredWithCDN];
       const uniqueOrders = Array.from(
         new Map(combined.map((order) => [order.ORDER_ID, order])).values()
       );
-
+  
       setOrders(uniqueOrders);
       localStorage.setItem("filteredOrders", JSON.stringify(uniqueOrders));
     } catch (error) {
@@ -132,8 +141,6 @@ type Order = {
     }
   }, [existingMobiles, fetchFilteredOrders]);
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`;
-
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const orderDateOnly = order.ORDER_DATE.split(" ")[0];
@@ -142,7 +149,7 @@ type Order = {
       return matchBA && matchOD;
     });
   }, [orders, selectedBA, selectedOD]);
-
+  
   const baCodeDetailsMap: {
     [key: string]: {
       sublocationCode: string;
