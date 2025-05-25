@@ -77,6 +77,7 @@ const IPTVOrdersPage = () => {
   const [totalSelectedCount, setTotalSelectedCount] = useState(0);
   const [showExisting, setShowExisting] = useState(false);
   const [showRegistered, setShowRegistered] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   const [orderDates, setOrderDates] = useState<string[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
@@ -107,9 +108,17 @@ const IPTVOrdersPage = () => {
   });
   
   
+  // ✅ Token and localStorage dependent values moved into useEffect
   useEffect(() => {
-    fetchOrders();
+    const accessToken = localStorage.getItem("access_token");
+    setToken(accessToken ? `Bearer ${accessToken}` : null);
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      fetchOrders();
+    }
+  }, [token]);
 
   useEffect(() => {
     const uniqueOrderDates = Array.from(new Set(orders.map(o => o.ORDER_DATE)));
@@ -122,38 +131,40 @@ const IPTVOrdersPage = () => {
       setExistingMobiles(JSON.parse(storedMobiles));
     }
   }, []);
-  
-  
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/fetchIptvOrders", {
         method: "POST",
+        headers: {
+          Authorization: token || "", // 🛡️ Use token from state
+        },
       });
-  
+
       if (!response.ok) throw new Error("API fetch failed");
-  
+
       const data = await response.json();
-      
       let fetchedOrders: Order[] = data?.orders || [];
-  
+
       fetchedOrders = fetchedOrders.map(order => ({
         ...order,
         CDN_LABEL: circleToCdnMap[order.CIRCLE_CODE] || "CD1",
       }));
-  
+
       localStorage.setItem("iptvOrders", JSON.stringify(fetchedOrders));
       setOrders(fetchedOrders);
-  
+
       const uniqueBAs = Array.from(new Set(fetchedOrders.map(o => o.BA_CODE)));
       setBas(uniqueBAs);
     } catch (err) {
       console.error("API failed, loading from localStorage:", err);
-  
+
       const cachedData = localStorage.getItem("iptvOrders");
       if (cachedData) {
         const cachedOrders: Order[] = JSON.parse(cachedData);
         setOrders(cachedOrders);
+
         const uniqueBAs = Array.from(new Set(cachedOrders.map(o => o.BA_CODE)));
         setBas(uniqueBAs);
       } else {
@@ -163,7 +174,7 @@ const IPTVOrdersPage = () => {
       setLoading(false);
     }
   };
-  
+
   const handleViewClick = (order: Order) => {
     setPopupData(order);
     setIsPopupVisible(true);
@@ -318,7 +329,6 @@ const IPTVOrdersPage = () => {
     );
   };
   
-  const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use stored token
 
   const handleCreate = async () => {
     if (selectedOrderIds.length === 0) {
@@ -368,7 +378,7 @@ const IPTVOrdersPage = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: token,
+              Authorization: token || "", // ✅ safe and flexible
             },
             body: JSON.stringify(subscriberPayload),
           }
@@ -397,7 +407,7 @@ const IPTVOrdersPage = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: token,
+              Authorization: token || "", // ✅ safe and flexible
             },
             body: JSON.stringify(accountPayload),
           }

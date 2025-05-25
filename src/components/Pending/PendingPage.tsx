@@ -67,6 +67,7 @@ type Order = {
   const selectedOD = "";
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   const handleViewClick = (order: Order) => {
     setPopupData(order);
@@ -76,10 +77,10 @@ type Order = {
   };
 
   const fetchFilteredOrders = useCallback(async () => {
+    if (!token) return; // Wait until token is available
+  
     setLoading(true);
     try {
-      const token = `Bearer ${localStorage.getItem("access_token")}`; // ✅ Use the token here
-  
       const response = await fetch("/api/fetchIptvOrders", {
         method: "POST",
         headers: {
@@ -123,7 +124,14 @@ type Order = {
     } finally {
       setLoading(false);
     }
-  }, [existingMobiles]);
+  }, [existingMobiles, token]); // ✅ include token in dependency  
+
+  useEffect(() => {
+    const accessToken = localStorage.getItem("access_token");
+    if (accessToken) {
+      setToken(`Bearer ${accessToken}`);
+    }
+  }, []);  
   
   useEffect(() => {
     const stored = localStorage.getItem("existingMobiles");
@@ -134,12 +142,12 @@ type Order = {
     if (savedIds) setSelectedOrderIds(JSON.parse(savedIds));
     if (stored) setExistingMobiles(JSON.parse(stored));
   }, []);
-  
+
   useEffect(() => {
-    if (existingMobiles.length > 0) {
+    if (token && existingMobiles.length > 0) {
       fetchFilteredOrders();
     }
-  }, [existingMobiles, fetchFilteredOrders]);
+  }, [existingMobiles, token, fetchFilteredOrders]);
   
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
