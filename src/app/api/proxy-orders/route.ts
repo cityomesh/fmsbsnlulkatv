@@ -1,11 +1,13 @@
+// app/api/fetchIptvOrders/route.ts
+
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function POST() {
   try {
     const response = await fetch(
       "https://fms.bsnl.in/fmswebservices/rest/iptv/getiptvorders",
       {
-        method: "POST", // External API request is POST
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -21,7 +23,7 @@ export async function GET() {
     }
 
     const data = await response.json();
-    return NextResponse.json(data); // Return the JSON data from the external API
+    return NextResponse.json(data); // 👍 send to client
   } catch (error) {
     console.error("Error fetching data:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
