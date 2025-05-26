@@ -68,7 +68,6 @@ type Order = {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [popupData, setPopupData] = useState<Order | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const accessToken = localStorage.getItem("access_token");
 
   const handleViewClick = (order: Order) => {
     setPopupData(order);
