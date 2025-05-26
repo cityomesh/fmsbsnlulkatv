@@ -281,10 +281,10 @@ const IPTVOrdersPage = () => {
         order.ADDRESS || "", // billing_address
         pincode, // billing_pincode
         order.RMN, // iptvuser_id
-        "1", // bouque_code
+        "B001010", // bouque_code
         "", // outstanding
         "X000002", // scheme_code
-        "3", // rperiod_code
+        "1 month", // rperiod_code
         "", // dob
         "1", // customer_type
         "0", // formno
