@@ -260,8 +260,9 @@ const IPTVOrdersPage = () => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
       const fullName = (order.CUSTOMER_NAME || "").trim().split(" ");
-      const fname = fullName.slice(0, 2).join(" ");
-      const lname = fullName.slice(2).join(" ");
+      const fname = fullName[0] || "";
+      const mname = fullName.length === 3 ? fullName[1] : "";
+      const lname = fullName.length === 3 ? fullName[2] : fullName.slice(1).join(" ");      
       const details = baCodeDetailsMap[order.BA_CODE] || {};
 
       return [
