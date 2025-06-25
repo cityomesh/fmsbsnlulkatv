@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import AutoLogout from "../components/AutoLogout";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -31,10 +30,7 @@ export default function RootLayout({
       >
         {children}
       </body>
-      <AutoLogout />
 
     </html>
   );
 }
-
-

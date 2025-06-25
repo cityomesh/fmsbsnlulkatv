@@ -1,0 +1,26 @@
+export const locationAliases: Record<string, string> = {
+    "CHT": "Chittoor",
+    "TirupathiIftv": "Tirupati",
+    "ATP": "Anantapur",
+    "VJW": "Vijayawada",
+    "CDP": "Cuddapah",
+    "SKM": "Srikakulam",
+    "VZM": "Vijayanagaram",
+    "KNL": "Kurnool",
+    "ONG": "Ongloe",
+    "GTR": "Guntur",
+    "NLR": "Nellore",
+    "RMY": "Rajahmundry",
+    "ELR": "Eluru",
+    "WGL": "Warangal",
+    "VSK": "Visakhapatnam",
+    "KAA": "Kakinada",
+    "KHM": "Khammam",
+    "NGD": "Nalgonda",
+    "HYD": "Hyderabad",
+    "MBN": "Mahbubnagar",
+    "NZB": "Nizamabad",
+    "SGD": "Sangareddy",
+    // ...add more if needed
+  };
+  

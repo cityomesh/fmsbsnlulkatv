@@ -1,8 +1,13 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { circleToCdnMap } from "./constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
+import { createHmac } from "crypto";
+import { toast }from 'react-toastify';
+import { format } from "date-fns";
+import { PRODUCTION_CONFIG } from "@/src/config/productionConfig";
+import { locationMap } from "@/src/config/locationMap";
+import { locationAliases } from "@/src/config/locationAliases";
 
 type Order = {
   ORDER_ID: string;
@@ -78,11 +83,18 @@ const IPTVOrdersPage = () => {
   const [showExisting, setShowExisting] = useState(false);
   const [showRegistered, setShowRegistered] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-
+  const SECRET_KEY = "V9CKCuBk8nNd";
+  
   const [orderDates, setOrderDates] = useState<string[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
+  const [existingMobilesSet, setExistingMobilesSet] = useState<Set<string>>(new Set());
+  const [alreadyRegisteredMobiles, setAlreadyRegisteredMobiles] = useState<string[]>([]);
+
   const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showBsnlResult, setShowBsnlResult] = useState(false);
+  const [bsnlResults, setBsnlResults] = useState<any[]>([]);
+
   const filteredOrders = orders.filter(order => {
     const orderDateOnly = order.ORDER_DATE.split(' ')[0];
     const matchBA = selectedBA ? order.BA_CODE === selectedBA : true;
@@ -92,13 +104,14 @@ const IPTVOrdersPage = () => {
   
   const currentExistingMobiles: string[] = [];
 
-  const isAllSelected = selectedOrderIds.length === filteredOrders.length;
+  const isAllSelected = filteredOrders
+    .filter(o => !existingMobilesSet.has(o.RMN || o.PHONE_NO || ""))
+    .every(o => selectedOrderIds.includes(o.ORDER_ID));
 
   {existingMobiles.map((mobile: string, index: number) => (
     <li key={index}>{mobile}</li>
   ))}
-  
-  
+
   const orderDateOptions: OptionType[] = orderDates.map(date => {
     const onlyDate = date.split(' ')[0];
     return {
@@ -108,7 +121,6 @@ const IPTVOrdersPage = () => {
   });
   
   
-  // ✅ Token and localStorage dependent values moved into useEffect
   useEffect(() => {
     const accessToken = localStorage.getItem("access_token");
     setToken(accessToken ? `Bearer ${accessToken}` : null);
@@ -126,11 +138,59 @@ const IPTVOrdersPage = () => {
   }, [orders]);
 
   useEffect(() => {
+    console.log("📨 Final BSNL Results for UI:", bsnlResults);
+  }, [bsnlResults]);
+  
+  useEffect(() => {
     const storedMobiles = localStorage.getItem("existingMobiles");
     if (storedMobiles) {
-      setExistingMobiles(JSON.parse(storedMobiles));
+      const parsed = JSON.parse(storedMobiles);
+      setExistingMobiles(parsed);
+      setExistingMobilesSet(new Set(parsed));
     }
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("existingMobiles");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setExistingMobiles(parsed);
+      setExistingMobilesSet(new Set(parsed));
+    }
+  }, []);
+  
+  useEffect(() => {
+    const saved = localStorage.getItem("existingMobiles");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setExistingMobilesSet(new Set(parsed));
+      } catch (e) {
+        console.error("Failed to parse existingMobiles:", e);
+      }
+    }
+  }, []);
+
+  const fetchActiveOrders = async () => {
+    try {
+      const response = await fetch("/api/fetchActiveIptvOrders", {
+        method: "POST",
+        headers: {
+          Authorization: token || "",
+        },
+      });
+  
+      if (!response.ok) throw new Error("Active orders fetch failed");
+  
+      const data = await response.json();
+      setOrders(data.orders); // or setActiveOrders() if you're keeping it separately
+      toast.success("Active orders loaded!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch Active orders");
+    }
+  };
+  
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -240,7 +300,6 @@ const IPTVOrdersPage = () => {
     "Nalgonda": { sublocationCode: "S2110S000001", cdnCode: "CDN106" }
   };
   
-  
   const downloadCSV = () => {
     const headers = [
       "fname", "lname", "mname", "gender", "mobile_no", "phone_no", "email",
@@ -259,9 +318,33 @@ const IPTVOrdersPage = () => {
     const rows = selectedOrders.map(order => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
-      const fullName = (order.CUSTOMER_NAME || "").trim().split(" ");
-      const fname = fullName[0] || "";
-      const lname = fullName.length === 3 ? fullName[2] : fullName.slice(1).join(" ");    
+      const fullName = (order.CUSTOMER_NAME || "").trim().split(/\s+/);
+      let fname = "";
+      let lname = "";
+      
+      if (fullName.length === 1) {
+        fname = fullName[0];
+        lname = ".";
+      } else if (fullName.length === 2) {
+        fname = fullName[0];
+        lname = fullName[1];
+      } else {
+        fname = fullName[0];
+        lname = fullName.slice(1).join(" ");
+      }
+      
+      if (fname.length === 1) {
+        fname = fname + ".";
+      }
+      
+      if (lname.length === 1) {
+        lname = lname + ".";
+      }
+      
+      if (!lname || lname.trim() === "") {
+        lname = ".";
+      }
+      
       const details = baCodeDetailsMap[order.BA_CODE] || {};
 
       return [
@@ -321,124 +404,239 @@ const IPTVOrdersPage = () => {
         : [...prev, orderId]
     );
   };
-  
-  const handleSelectAll = () => {
-    const allIds = filteredOrders.map(o => o.ORDER_ID);
-    setSelectedOrderIds(prev =>
-      prev.length === allIds.length ? [] : allIds
-    );
-  };
-  
 
+  const extractPincodeFromAddress = (address: string): string => {
+    const pincodeRegex = /(\d{6})$/;
+    const match = address.match(pincodeRegex);
+    return match ? match[1] : "138871"; // fallback if no pincode
+  };
+
+  const handleSelectAll = () => {
+    const selectableOrders = filteredOrders.filter(
+      o => !existingMobilesSet.has(o.RMN || o.PHONE_NO || "")
+    );
+    const selectableIds = selectableOrders.map(o => o.ORDER_ID);
+  
+    setSelectedOrderIds(prev =>
+      prev.length === selectableIds.length ? [] : selectableIds
+    );
+  };  
+  
   const handleCreate = async () => {
-    if (selectedOrderIds.length === 0) {
-      alert("Please select at least one order.");
+    const token = localStorage.getItem("access_token");
+  
+    if (!token) {
+      toast.error("Login required. Please login again.");
       return;
     }
   
-    const selectedOrders = orders.filter((order) =>
+    if (selectedOrderIds.length === 0) {
+      toast.warning("Please select at least one order.");
+      return;
+    }
+  
+    const selectedOrders = orders.filter(order =>
       selectedOrderIds.includes(order.ORDER_ID)
     );
   
-    const processedPhones = new Set<string>();
     const successMobiles: string[] = [];
-    const existingMobiles: string[] = [];
+    const processedPhones = new Set<string>();
+    const currentExistingMobiles: string[] = [];
+    const bsnlResultsTemp: any[] = [];
   
     for (const order of selectedOrders) {
       const mobile = order.RMN || order.PHONE_NO || "9999999999";
       if (processedPhones.has(mobile)) continue;
+
+      // ✅ Step 0: Check with Supabase if already registered
+      const checkRes = await fetch("/api/existingMobiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNo: mobile,
+          orderId: order.ORDER_ID,
+          vendorCode: "IPTV_ULKA_TV",
+        }),
+      });
   
-      const cleanCircle = order.CIRCLE_CODE?.trim().toUpperCase();
-      const cdn_id = circleToCdnMap[cleanCircle] || 1;
+      const checkData = await checkRes.json();
+  
+      if (checkData?.message === "Already Registered") {
+        toast.warning(`⚠️ ${mobile} already registered`);
+      
+        setExistingMobilesSet((prevSet) => {
+          const updated = new Set(prevSet);
+          updated.add(mobile);
+          localStorage.setItem("existingMobiles", JSON.stringify(Array.from(updated)));
+          return updated;
+        });
+      
+        continue;
+      }            
+  
+      const address = order.ADDRESS || "N/A";
+      const extractedPincode = extractPincodeFromAddress(address);
+
+      // 🔁 Normalize location key using alias
+      let locationKey = order.BA_CODE || order.CIRCLE_CODE || "";
+      if (locationAliases[locationKey]) {
+        locationKey = locationAliases[locationKey];
+      }
+  
+      const locationInfo = locationMap[locationKey] || {
+        sublocation_id: PRODUCTION_CONFIG.sublocationId,
+        cdn_id: PRODUCTION_CONFIG.cdnId,
+      };
   
       const subscriberPayload = {
-        billing_address: { addr: order.ADDRESS || "N/A", pincode: "123456" },
+        billing_address: {
+          addr: address,
+          pincode: extractedPincode,
+        },
         fname: order.CUSTOMER_NAME || "N/A",
         mname: "",
-        lname: "NA",
+        lname: "Customer",
         mobile_no: mobile,
-        phone_no: mobile,
+        phone_no: "",
         email: order.EMAIL?.trim() || "user@example.com",
         installation_address: order.ADDRESS || "N/A",
-        pincode: "123456",
+        pincode: order.installation_pincode || "138871",
         formno: "",
-        gender: 0,
+        gender: PRODUCTION_CONFIG.defaultGender,
         dob: null,
-        customer_type: 1,
-        sublocation_id: 5,
-        cdn_id: cdn_id,
-        flatno: "109",
-        floor: "5",
+        customer_type: PRODUCTION_CONFIG.customerType,
+        sublocation_id: locationInfo.sublocation_id,
+        cdn_id: locationInfo.cdn_id,
+        flatno: "1",
+        floor: "1",
       };
   
       try {
+        // STEP 1: Create Subscriber
         const subscriberRes = await fetch(
-          "http://202.62.66.122/api/railtel.php/v1/subscriber?vr=railtel1.1",
+          `${PRODUCTION_CONFIG.apiBasePath}/v1/subscriber?vr=railtel1.1`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: token || "", // ✅ safe and flexible
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(subscriberPayload),
           }
         );
         const subscriberData = await subscriberRes.json();
         const subscriberId = subscriberData?.data?.id;
-  
-        if (!subscriberRes.ok || !subscriberId) {
-          console.error("❌ Subscriber creation failed:", subscriberData);
+        if (!subscriberId) {
+          toast.error(`❌ Subscriber creation failed for ${mobile}`);
           continue;
         }
   
+        // STEP 2: Create Account
         const accountPayload = {
           subscriber_id: subscriberId,
           iptvuser_id: mobile,
-          iptvuser_password: "test55",
-          scheme_id: 1,
-          bouque_ids: [1],
-          rperiod_id: 2,
-          cdn_id,
+          iptvuser_password: "Bsnl@123",
+          scheme_id: PRODUCTION_CONFIG.schemeId,
+          bouque_ids: PRODUCTION_CONFIG.bouquetIds,
+          rperiod_id: PRODUCTION_CONFIG.rperiodId,
+          cdn_id: locationInfo.cdn_id,
+          sublocation_id: locationInfo.sublocation_id,
         };
   
         const accountRes = await fetch(
-          "http://202.62.66.122/api/railtel.php/v1/account?vr=railtel1.1",
+          `${PRODUCTION_CONFIG.apiBasePath}/v1/account?vr=railtel1.1`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: token || "", // ✅ safe and flexible
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(accountPayload),
           }
         );
   
         const accountData = await accountRes.json();
-  
         if (!accountRes.ok) {
-          const errorMsg = accountData?.data?.message?.pairing_id?.[0];
-          if (errorMsg?.includes("already in assigned")) {
+          const err = accountData?.data?.message?.pairing_id?.[0];
+          if (err?.includes("already in assigned")) {
             currentExistingMobiles.push(mobile);
+            toast.warning(`⚠️ Account already exists for ${mobile}`);
           }
-        continue;
-        } else {
-          successMobiles.push(mobile);
+          continue;
+        }
+  
+        // STEP 3: Generate Checksum
+        const checksumRes = await fetch("/api/generate-checksum", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.ORDER_ID,
+            vendorCode: "IPTV_ULKA_TV",
+            phoneNo: order.PHONE_NO,
+          }),
+        });
+        const checksumData = await checksumRes.json();
+        const checksum = checksumData?.checksum;
+        if (!checksum) {
+          toast.error(`❌ Checksum generation failed for ${order.ORDER_ID}`);
+          continue;
+        }
+  
+        // STEP 4: Send BSNL Update
+        const bsnlPayload = {
+          iptvorderdata: {
+            activity: "SUB_CREATED",
+            orderId: order.ORDER_ID,
+            phoneNo: order.PHONE_NO,
+            vendorCode: "IPTV_ULKA_TV",
+            iptvStatus: "Active",
+            subsId: mobile,
+            orderDate: order.ORDER_DATE || format(new Date(), "dd/MM/yyyy HH:mm:ss"),
+            remarks: "SUB_CREATED",
+            checksum,
+          },
+        };
+  
+        const bsnlRes = await fetch("/api/updateBsnlOrder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bsnlPayload),
+        });
+  
+        const bsnlData = await bsnlRes.json();
+        const remarks = bsnlData?.ROWSET?.[0]?.REMARKS || "No Remarks";
+        const bsnlStatus = bsnlData?.STATUS?.toLowerCase();
+  
+        bsnlResultsTemp.push({
+          orderId: order.ORDER_ID,
+          mobile,
+          iptvStatus: "Active",
+          vendorCode: "IPTV_ULKA_TV",
+          activity: "SUB_CREATED",
+          remarks,
+        });
+  
+        if (bsnlStatus === "success" && remarks.includes("Updated Successfully")) {
+          toast.success(`✅ BSNL Activated: ${order.ORDER_ID}`);
           processedPhones.add(mobile);
+          successMobiles.push(mobile);
+        } else {
+          toast.error(`❌ BSNL failed: ${order.ORDER_ID} - ${remarks}`);
         }
       } catch (err) {
-        console.error("Error:", err);
-        alert("Something went wrong.");
+        console.error("❌ Internal Error:", err);
+        toast.error("❌ Internal Error. Please try again.");
       }
     }
-    setSelectedOrderIds([]); // ✅ This will uncheck all checkboxes
+  
     setSuccessMobiles(successMobiles);
+    setSelectedOrderIds([]);
+    setBsnlResults(bsnlResultsTemp);
     setShowResultModal(true);
-    setTotalSelectedCount(selectedOrderIds.length); // ✅ Save selected count
-    setExistingMobiles((prev) => Array.from(new Set([...prev, ...existingMobiles])));
     setExistingMobiles((prev) => {
-      const updatedList = Array.from(new Set([...prev, ...currentExistingMobiles]));
-      localStorage.setItem("existingMobiles", JSON.stringify(updatedList)); // 🧠 Save to localStorage
-      return updatedList;
+      const updatedMobiles = [...new Set([...prev, ...currentExistingMobiles])];
+      localStorage.setItem("existingMobiles", JSON.stringify(updatedMobiles));
+      return updatedMobiles;
     });
   };
   
@@ -505,13 +703,19 @@ const IPTVOrdersPage = () => {
         >
           Send
         </button>
+        <button
+            onClick={fetchActiveOrders}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Active Orders
+          </button>
       </div>
 
       <div className="overflow-auto">
         <table className="min-w-[1700px] border border-gray-300 text-[15px]">
           <thead className="bg-gray-100 text-left font-bold">
             <tr>
-              <th className="px-4 py-2 border">
+              <th className="px-6 py-2 border">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -530,13 +734,37 @@ const IPTVOrdersPage = () => {
           <tbody>
             {filteredOrders.map((order, idx) => (
               <tr key={idx} className="hover:bg-gray-50">
-                <td className="px-4 py-2 border">
-                  <input
-                    type="checkbox"
-                    checked={selectedOrderIds.includes(order.ORDER_ID)}
-                    onChange={() => handleCheckboxChange(order.ORDER_ID)}
-                  />
+                <td className="px-6 py-2 border">
+                {(() => {
+                  const phone = order.RMN || order.PHONE_NO || "";
+                  const isRegistered = !!phone && existingMobilesSet.has(phone);
+
+                  return (
+                    <div className="flex flex-col items-start">
+                      <input
+                        type="checkbox"
+                        disabled={isRegistered}
+                        checked={selectedOrderIds.includes(order.ORDER_ID)}
+                        onChange={() => {
+                          if (!isRegistered) {
+                            handleCheckboxChange(order.ORDER_ID);
+                          }
+                        }}
+                        className={`px-6 py-2 rounded ${
+                          isRegistered
+                            ? "border-red-500 bg-red-100 cursor-not-allowed"
+                            : "border-gray-300 cursor-pointer"
+                        }`}
+                      />
+                      {isRegistered && (
+                        <span className="text-red-500 text-xs mt-1">Already Registered</span>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 </td>
+
                 <td className="px-4 py-2 border">{order.ORDER_ID}</td>
                 <td className="px-4 py-2 border">{order.ORDER_DATE}</td>
                 <td className="px-4 py-2 border">{order.CUSTOMER_NAME}</td>
@@ -560,19 +788,18 @@ const IPTVOrdersPage = () => {
       {showResultModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded shadow-lg w-[900px] max-h-[80vh] overflow-y-auto relative">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-blue-600">
-              📋 Registration Summary
-            </h2>
-            <button
-              onClick={() => {
-                setShowResultModal(false);
-              }}
-              className="text-blue-600 font-bold text-lg hover:underline"
-            >
-              ← Back
-            </button>
-          </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-blue-600">📋 Registration Summary</h2>
+              <button
+                onClick={() => {
+                  setShowResultModal(false);
+                }}
+                className="text-blue-600 font-bold text-lg hover:underline"
+              >
+                ← Back
+              </button>
+            </div>
+
             <p className="text-sm font-medium text-gray-600 mb-2">
               Total Selected: {totalSelectedCount}
             </p>
@@ -584,6 +811,7 @@ const IPTVOrdersPage = () => {
               ⚠️ Already Exists: <strong>{existingMobiles.length}</strong>
             </p>
 
+            {/* ✅ Existing Mobiles Toggle */}
             {existingMobiles.length > 0 && (
               <div className="mt-6">
                 <div className="flex justify-between items-center">
@@ -610,6 +838,7 @@ const IPTVOrdersPage = () => {
               </div>
             )}
 
+            {/* ✅ Success Mobiles Toggle */}
             {successMobiles.length > 0 && (
               <div className="mt-4">
                 <p
@@ -634,9 +863,33 @@ const IPTVOrdersPage = () => {
               </div>
             )}
 
-            <p className="mt-6 font-bold text-xl text-gray-700">
-              Do you want to renew their subscription?
-            </p>
+            {/* ✅ BSNL API RESULT TABLE */}
+            {bsnlResults.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-indigo-600 mb-2">📡 BSNL API Result Summary</h3>
+                  <div className="overflow-x-auto border rounded">
+                  <table className="w-full text-sm text-left text-gray-500">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Activity</th>
+                        <th>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {bsnlResults.map((res, index) => (
+                      <tr key={index} className="bg-white border-b">
+                        <td>{res.orderId}</td>
+                        <td>{res.activity}</td>
+                        <td>{res.remarks}</td>
+                      </tr>
+                    ))}
+                    </tbody>
+                  </table>
+
+                  </div>
+                </div>
+              )}
 
             <div className="flex justify-end gap-4 mt-6">
               <button
@@ -644,6 +897,7 @@ const IPTVOrdersPage = () => {
                   setShowResultModal(false);
                   setExistingMobiles([]);
                   setSuccessMobiles([]);
+                  setBsnlResults([]); // Clear BSNL result
                 }}
                 className="px-4 py-2 bg-gray-300 text-black rounded"
               >
@@ -653,6 +907,8 @@ const IPTVOrdersPage = () => {
           </div>
         </div>
       )}
+
+
 
       {isPopupVisible && popupData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">

@@ -5,14 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 
 const Login = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter(); // Next.js router
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -20,7 +20,7 @@ const Login = () => {
 
     try {
       const response = await fetch(
-        "http://202.62.66.122/api/railtel.php/v1/user/login?vr=railtel1.1",
+        "https://partners.ulka.tv/api/railtel.php/v1/user/login?vr=railtel1.1",
         {
           method: "POST",
           headers: {
@@ -40,6 +40,7 @@ const Login = () => {
       if (data.success) {
         setSuccess("User login successful!");
         console.log("User Data:", data.data);
+
         localStorage.setItem("access_token", data.data.access_token);
         localStorage.setItem("auth_token", data.data.auth_token);
         localStorage.setItem("username", data.data.username);
@@ -50,7 +51,7 @@ const Login = () => {
       } else {
         setError(data.message || "Invalid credentials. Please try again.");
       }
-    } catch {
+    } catch (err) {
       setError("Something went wrong. Please try again later.");
     } finally {
       setLoading(false);
@@ -75,7 +76,9 @@ const Login = () => {
             placeholder="Username"
             className="w-full p-3 mb-3 bg-white text-black rounded-md focus:outline-none"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUsername(e.target.value)
+            }
             required
           />
           <input
@@ -83,7 +86,9 @@ const Login = () => {
             placeholder="Password"
             className="w-full p-3 mb-3 bg-white text-black rounded-md focus:outline-none"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
             required
           />
           {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
@@ -96,6 +101,7 @@ const Login = () => {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
         <div className="flex justify-between text-sm mt-4 text-gray-400">
           <a href="#" className="hover:text-white">
             Signup/Register

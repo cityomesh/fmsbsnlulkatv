@@ -222,9 +222,35 @@ type Order = {
     const rows = selectedOrders.map(order => {
       const addressParts = (order.ADDRESS || "").split(",");
       const pincode = addressParts[addressParts.length - 1]?.trim() || "";
-      const fullName = (order.CUSTOMER_NAME || "").trim().split(" ");
-      const fname = fullName[0] || "";
-      const lname = fullName.length === 3 ? fullName[2] : fullName.slice(1).join(" "); 
+      const fullName = (order.CUSTOMER_NAME || "").trim().split(/\s+/);
+      let fname = "";
+      let lname = "";
+      
+      if (fullName.length === 1) {
+        fname = fullName[0];
+        lname = ".";
+      } else if (fullName.length === 2) {
+        fname = fullName[0];
+        lname = fullName[1];
+      } else {
+        fname = fullName[0];
+        lname = fullName.slice(1).join(" ");
+      }
+      
+      if (fname.length === 1) {
+        fname = fname + ".";
+      }
+      
+      if (lname.length === 1) {
+        lname = lname + ".";
+      }
+      
+      if (!lname || lname.trim() === "") {
+        lname = ".";
+      }
+      
+      
+      
       const details = baCodeDetailsMap[order.BA_CODE] || {};
 
       return [

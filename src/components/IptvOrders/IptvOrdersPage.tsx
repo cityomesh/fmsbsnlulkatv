@@ -44,7 +44,7 @@ const IptvOrdersPage = () => {
         }
 
         const response = await axios.get<{ data: Order[] }>(
-          `http://202.62.66.122/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=1000&vr=railtel1.1`,
+          `https://partners.ulka.tv/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=50&vr=railtel1.1`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -98,7 +98,7 @@ const IptvOrdersPage = () => {
       }
 
       const response = await axios.get<{ data: Order[] }>(
-        `http://202.62.66.122/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=1000&vr=railtel1.1`,
+        `https://partners.ulka.tv/api/railtel.php/v1/subscriber?expand=customer_type_lbl,created_by_lbl,status_lbl,gender_lbl,location_lbl,sublocation_lbl,operator_lbl,operator_code_lbl,distributor_lbl,distributor_code_lbl,branch_lbl,branch_code_lbl,connection_lbl,bill_addr,addr&page=1&per-page=50&vr=railtel1.1`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
