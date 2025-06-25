@@ -91,7 +91,8 @@ const IPTVOrdersPage = () => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [bsnlResults, setBsnlResults] = useState<any[]>([]);
 
-  const filteredOrders = orders.filter(order => {
+  const validOrders = orders.filter(order => !!order.ORDER_DATE); // only those with ORDER_DATE
+  const filteredOrders = validOrders.filter(order => {
     const orderDateOnly = order.ORDER_DATE.split(' ')[0];
     const matchBA = selectedBA ? order.BA_CODE === selectedBA : true;
     const matchOD = selectedOD ? orderDateOnly === selectedOD : true;
@@ -168,6 +169,17 @@ const IPTVOrdersPage = () => {
     }
   }, []);
 
+
+  useEffect(() => {
+    const cachedData = localStorage.getItem("iptvOrders");
+    if (cachedData) {
+      const cachedOrders: Order[] = JSON.parse(cachedData);
+      setOrders(cachedOrders); // 🌟 డేటా వెంటనే UI లో వస్తుంది
+      const uniqueBAs = Array.from(new Set(cachedOrders.map(o => o.BA_CODE)));
+      setBas(uniqueBAs);
+    }
+  }, []);
+  
   const fetchActiveOrders = async () => {
     try {
       const response = await fetch("/api/fetchActiveIptvOrders", {
