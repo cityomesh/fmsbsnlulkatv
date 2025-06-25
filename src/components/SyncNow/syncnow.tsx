@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { circleToCdnMap } from "../constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
-import { createHmac } from "crypto";
 import { toast }from 'react-toastify';
 import { format } from "date-fns";
 import { PRODUCTION_CONFIG } from "@/src/config/productionConfig";
@@ -83,16 +82,13 @@ const IPTVOrdersPage = () => {
   const [showExisting, setShowExisting] = useState(false);
   const [showRegistered, setShowRegistered] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const SECRET_KEY = "V9CKCuBk8nNd";
   
   const [orderDates, setOrderDates] = useState<string[]>([]);
   const [existingMobiles, setExistingMobiles] = useState<string[]>([]);
   const [existingMobilesSet, setExistingMobilesSet] = useState<Set<string>>(new Set());
-  const [alreadyRegisteredMobiles, setAlreadyRegisteredMobiles] = useState<string[]>([]);
 
   const [successMobiles, setSuccessMobiles] = useState<string[]>([]);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [showBsnlResult, setShowBsnlResult] = useState(false);
   const [bsnlResults, setBsnlResults] = useState<any[]>([]);
 
   const filteredOrders = orders.filter(order => {
@@ -102,8 +98,6 @@ const IPTVOrdersPage = () => {
     return matchBA && matchOD;
   });
   
-  const currentExistingMobiles: string[] = [];
-
   const isAllSelected = filteredOrders
     .filter(o => !existingMobilesSet.has(o.RMN || o.PHONE_NO || ""))
     .every(o => selectedOrderIds.includes(o.ORDER_ID));
@@ -119,8 +113,7 @@ const IPTVOrdersPage = () => {
       label: onlyDate,
     };
   });
-  
-  
+   
   useEffect(() => {
     const accessToken = localStorage.getItem("access_token");
     setToken(accessToken ? `Bearer ${accessToken}` : null);
@@ -160,6 +153,10 @@ const IPTVOrdersPage = () => {
   }, []);
   
   useEffect(() => {
+    setTotalSelectedCount(selectedOrderIds.length);
+  }, [selectedOrderIds]);
+
+  useEffect(() => {
     const saved = localStorage.getItem("existingMobiles");
     if (saved) {
       try {
@@ -183,7 +180,7 @@ const IPTVOrdersPage = () => {
       if (!response.ok) throw new Error("Active orders fetch failed");
   
       const data = await response.json();
-      setOrders(data.orders);
+      setOrders(data.orders); // or setActiveOrders() if you're keeping it separately
       toast.success("Active orders loaded!");
     } catch (err) {
       console.error(err);
@@ -396,6 +393,7 @@ const IPTVOrdersPage = () => {
     document.body.removeChild(link);
   };
   
+
   const handleCheckboxChange = (orderId: string) => {
     setSelectedOrderIds((prev) =>
       prev.includes(orderId)
@@ -966,4 +964,3 @@ const IPTVOrdersPage = () => {
 };
 
 export default IPTVOrdersPage;
-

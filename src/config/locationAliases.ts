@@ -23,4 +23,4 @@ export const locationAliases: Record<string, string> = {
     "SGD": "Sangareddy",
     // ...add more if needed
   };
-  
+ 
