@@ -66,14 +66,11 @@ const Header = () => {
           </Link>
 
           <nav className="hidden md:flex space-x-6 text-[16px] font-bold text-black">
-            <Link href="/view-cron-logs" className="hover:text-blue-400">
+            {/* <Link href="/view-cron-logs" className="hover:text-blue-400">
               Cron Logs
-            </Link>
-            {/* <Link href="/active" className="hover:text-blue-400">
-              UlkaActive Orders
             </Link> */}
             <Link href="/pending" className="hover:text-blue-400">
-              Pending Orders
+              Already Registered Orders
             </Link>
             <Link href="/syncnow" className="hover:text-blue-400">
               🔄 Sync Now
@@ -85,6 +82,10 @@ const Header = () => {
               Last Synced: {lastSynced}
             </span>
           </nav>
+
+          <Link href="/bsnlchecksum" className="text-[16px] font-bold hover:text-blue-400">
+             PendingChecksum
+          </Link>
         </div>
 
         {isAuthenticated && (

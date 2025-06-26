@@ -1,6 +1,7 @@
+
 "use client";
 import { useEffect, useState } from "react";
-import { circleToCdnMap } from "./constants/cdnMap";
+import { circleToCdnMap } from "../constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
 import { toast }from 'react-toastify';
 import { format } from "date-fns";
@@ -79,7 +80,7 @@ type BsnlResult = {
 };
 
 
-const IPTVOrdersPage = () => {
+const BsnlPendingChecksem = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedBA, setSelectedBA] = useState("");
   const [selectedOD, setSelectedOD] = useState("");
@@ -441,8 +442,8 @@ const IPTVOrdersPage = () => {
       prev.length === selectableIds.length ? [] : selectableIds
     );
   };  
-  
-  const handleCreate = async () => {
+
+  const handleBSNLUpdateOnly = async () => {
     const token = localStorage.getItem("access_token");
   
     if (!token) {
@@ -459,139 +460,13 @@ const IPTVOrdersPage = () => {
       selectedOrderIds.includes(order.ORDER_ID)
     );
   
-    const successMobiles: string[] = [];
-    const processedPhones = new Set<string>();
-    const currentExistingMobiles: string[] = [];
     const bsnlResultsTemp: BsnlResult[] = [];
   
     for (const order of selectedOrders) {
       const mobile = order.RMN || order.PHONE_NO || "9999999999";
-      if (processedPhones.has(mobile)) continue;
-
-      // ✅ Step 0: Check with Supabase if already registered
-      const checkRes = await fetch("/api/existingMobiles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phoneNo: mobile,
-          orderId: order.ORDER_ID,
-          vendorCode: "IPTV_ULKA_TV",
-        }),
-      });
-  
-      const checkData = await checkRes.json();
-  
-      if (checkData?.message === "Already Registered") {
-        toast.warning(`⚠️ ${mobile} already registered`);
-      
-        setExistingMobilesSet((prevSet) => {
-          const updated = new Set(prevSet);
-          updated.add(mobile);
-          localStorage.setItem("existingMobiles", JSON.stringify(Array.from(updated)));
-          return updated;
-        });
-      
-        continue;
-      }            
-  
-      const address = order.ADDRESS || "N/A";
-      const extractedPincode = extractPincodeFromAddress(address);
-
-      // 🔁 Normalize location key using alias
-      let locationKey = order.BA_CODE || order.CIRCLE_CODE || "";
-      if (locationAliases[locationKey]) {
-        locationKey = locationAliases[locationKey];
-      }
-  
-      const locationInfo = locationMap[locationKey] || {
-        sublocation_id: PRODUCTION_CONFIG.sublocationId,
-        cdn_id: PRODUCTION_CONFIG.cdnId,
-      };
-  
-      // 📦 Subscriber create cheyyadam
-      const subscriberPayload = {
-        billing_address: {
-          addr: address,
-          pincode: extractedPincode,
-        },
-        fname: order.CUSTOMER_NAME || "N/A",
-        mname: "",
-        lname: "Customer",
-        mobile_no: mobile,
-        phone_no: "",
-        email: order.EMAIL?.trim() || "user@example.com",
-        installation_address: order.ADDRESS || "N/A",
-        pincode: order.installation_pincode || "138871",
-        formno: "",
-        gender: PRODUCTION_CONFIG.defaultGender,
-        dob: null,
-        customer_type: PRODUCTION_CONFIG.customerType,
-        sublocation_id: locationInfo.sublocation_id,
-        cdn_id: locationInfo.cdn_id,
-        flatno: "1",
-        floor: "1",
-      };
   
       try {
-        const subscriberRes = await fetch(
-          `${PRODUCTION_CONFIG.apiBasePath}/v1/subscriber?vr=railtel1.1`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(subscriberPayload),
-          }
-        );
-        const subscriberData = await subscriberRes.json();
-        const subscriberId = subscriberData?.data?.id;
-  
-        if (!subscriberId) {
-          toast.error(`❌ Subscriber creation failed for ${mobile}`);
-          continue;
-        }
-  
-        // 📦 Account create cheyyadam
-        const accountPayload = {
-          subscriber_id: subscriberId,
-          iptvuser_id: mobile,
-          iptvuser_password: "Bsnl@123",
-          scheme_id: PRODUCTION_CONFIG.schemeId,
-          bouque_ids: PRODUCTION_CONFIG.bouquetIds,
-          rperiod_id: PRODUCTION_CONFIG.rperiodId,
-          cdn_id: locationInfo.cdn_id,
-          sublocation_id: locationInfo.sublocation_id,
-        };
-  
-        const accountRes = await fetch(
-          `${PRODUCTION_CONFIG.apiBasePath}/v1/account?vr=railtel1.1`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(accountPayload),
-          }
-        );
-  
-        const accountData = await accountRes.json();
-  
-        if (!accountRes.ok) {
-          const err = accountData?.data?.message?.pairing_id?.[0];
-  
-          if (err?.includes("already in assigned")) {
-            toast.warning(`⚠️ Account already exists for ${mobile}`);
-            currentExistingMobiles.push(mobile);
-            // 🛑 Continue cheyyakunda BSNL ki update cheyyali (important!)
-          } else {
-            toast.error(`❌ Account creation failed for ${mobile}`);
-            continue;
-          }
-        }
-  
-        // ✅ Checksum generate cheyyadam
+        // ✅ Step 1: Generate Checksum
         const checksumRes = await fetch("/api/generate-checksum", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -610,7 +485,7 @@ const IPTVOrdersPage = () => {
           continue;
         }
   
-        // 📡 BSNL ki data pump cheyyadam
+        // ✅ Step 2: Send BSNL Update
         const bsnlPayload = {
           iptvorderdata: {
             activity: "SUB_CREATED",
@@ -646,9 +521,7 @@ const IPTVOrdersPage = () => {
         });
   
         if (bsnlStatus === "success" && remarks.includes("Updated Successfully")) {
-          toast.success(`✅ BSNL Activated: ${order.ORDER_ID}`);
-          processedPhones.add(mobile);
-          successMobiles.push(mobile);
+          toast.success(`✅ BSNL Updated Successfully: ${order.ORDER_ID}`);
         } else {
           toast.error(`❌ BSNL failed: ${order.ORDER_ID} - ${remarks}`);
         }
@@ -659,264 +532,25 @@ const IPTVOrdersPage = () => {
       }
     }
   
-    setSuccessMobiles(successMobiles);
-    setSelectedOrderIds([]);
     setBsnlResults(bsnlResultsTemp);
     setShowResultModal(true);
-    setExistingMobiles((prev) => {
-      const updatedMobiles = [...new Set([...prev, ...currentExistingMobiles])];
-      localStorage.setItem("existingMobiles", JSON.stringify(updatedMobiles));
-      return updatedMobiles;
-    });
   };
-
-
-  
-  // const handleCreate = async () => {
-  //   const token = localStorage.getItem("access_token");
-  
-  //   if (!token) {
-  //     toast.error("Login required. Please login again.");
-  //     return;
-  //   }
-  
-  //   if (selectedOrderIds.length === 0) {
-  //     toast.warning("Please select at least one order.");
-  //     return;
-  //   }
-  
-  //   const selectedOrders = orders.filter(order =>
-  //     selectedOrderIds.includes(order.ORDER_ID)
-  //   );
-  
-  //   const successMobiles: string[] = [];
-  //   const processedPhones = new Set<string>();
-  //   const currentExistingMobiles: string[] = [];
-  //   const bsnlResultsTemp: BsnlResult[] = [];
-  
-  //   for (const order of selectedOrders) {
-  //     const mobile = order.RMN || order.PHONE_NO || "9999999999";
-  //     if (processedPhones.has(mobile)) continue;
-  
-  //     // ✅ Step 0: Supabase lo register ayyindha check cheyyadam
-  //     let alreadyRegistered = false;
-  //     const checkRes = await fetch("/api/existingMobiles", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         phoneNo: mobile,
-  //         orderId: order.ORDER_ID,
-  //         vendorCode: "IPTV_ULKA_TV",
-  //       }),
-  //     });
-  
-  //     const checkData = await checkRes.json();
-  
-  //     if (checkData?.message === "Already Registered") {
-  //       toast.warning(`⚠️ ${mobile} already registered`);
-  //       alreadyRegistered = true;
-  //     }
-  
-  //     const address = order.ADDRESS || "N/A";
-  //     const extractedPincode = extractPincodeFromAddress(address);
-  
-  //     let locationKey = order.BA_CODE || order.CIRCLE_CODE || "";
-  //     if (locationAliases[locationKey]) {
-  //       locationKey = locationAliases[locationKey];
-  //     }
-  
-  //     const locationInfo = locationMap[locationKey] || {
-  //       sublocation_id: PRODUCTION_CONFIG.sublocationId,
-  //       cdn_id: PRODUCTION_CONFIG.cdnId,
-  //     };
-  
-  //     // 📦 Subscriber create cheyyadam
-  //     const subscriberPayload = {
-  //       billing_address: {
-  //         addr: address,
-  //         pincode: extractedPincode,
-  //       },
-  //       fname: order.CUSTOMER_NAME || "N/A",
-  //       mname: "",
-  //       lname: "Customer",
-  //       mobile_no: mobile,
-  //       phone_no: "",
-  //       email: order.EMAIL?.trim() || "user@example.com",
-  //       installation_address: address,
-  //       pincode: order.installation_pincode || "138871",
-  //       formno: "",
-  //       gender: PRODUCTION_CONFIG.defaultGender,
-  //       dob: null,
-  //       customer_type: PRODUCTION_CONFIG.customerType,
-  //       sublocation_id: locationInfo.sublocation_id,
-  //       cdn_id: locationInfo.cdn_id,
-  //       flatno: "1",
-  //       floor: "1",
-  //     };
-  
-  //     try {
-  //       const subscriberRes = await fetch(
-  //         `${PRODUCTION_CONFIG.apiBasePath}/v1/subscriber?vr=railtel1.1`,
-  //         {
-  //           method: "POST",
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: JSON.stringify(subscriberPayload),
-  //         }
-  //       );
-  //       const subscriberData = await subscriberRes.json();
-  //       const subscriberId = subscriberData?.data?.id;
-  
-  //       if (!subscriberId) {
-  //         toast.error(`❌ Subscriber creation failed for ${mobile}`);
-  //         continue;
-  //       }
-  
-  //       // 📦 Account create cheyyadam
-  //       const accountPayload = {
-  //         subscriber_id: subscriberId,
-  //         iptvuser_id: mobile,
-  //         iptvuser_password: "Bsnl@123",
-  //         scheme_id: PRODUCTION_CONFIG.schemeId,
-  //         bouque_ids: PRODUCTION_CONFIG.bouquetIds,
-  //         rperiod_id: PRODUCTION_CONFIG.rperiodId,
-  //         cdn_id: locationInfo.cdn_id,
-  //         sublocation_id: locationInfo.sublocation_id,
-  //       };
-  
-  //       const accountRes = await fetch(
-  //         `${PRODUCTION_CONFIG.apiBasePath}/v1/account?vr=railtel1.1`,
-  //         {
-  //           method: "POST",
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: JSON.stringify(accountPayload),
-  //         }
-  //       );
-  
-  //       const accountData = await accountRes.json();
-  
-  //       if (!accountRes.ok) {
-  //         const err = accountData?.data?.message?.pairing_id?.[0];
-  
-  //         if (err?.includes("already in assigned")) {
-  //           toast.warning(`⚠️ Account already exists for ${mobile}`);
-  //           currentExistingMobiles.push(mobile);
-  //         } else {
-  //           toast.error(`❌ Account creation failed for ${mobile}`);
-  //           continue;
-  //         }
-  //       }
-  
-  //       // ✅ Checksum generate cheyyadam
-  //       const checksumRes = await fetch("/api/generate-checksum", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           orderId: order.ORDER_ID,
-  //           vendorCode: "IPTV_ULKA_TV",
-  //           phoneNo: order.PHONE_NO,
-  //         }),
-  //       });
-  
-  //       const checksumData = await checksumRes.json();
-  //       const checksum = checksumData?.checksum;
-  
-  //       if (!checksum) {
-  //         toast.error(`❌ Checksum generation failed for ${order.ORDER_ID}`);
-  //         continue;
-  //       }
-  
-  //       // 📡 BSNL ki data pump cheyyadam
-  //       const bsnlPayload = {
-  //         iptvorderdata: {
-  //           activity: "SUB_CREATED",
-  //           orderId: order.ORDER_ID,
-  //           phoneNo: order.PHONE_NO,
-  //           vendorCode: "IPTV_ULKA_TV",
-  //           iptvStatus: "Active",
-  //           subsId: mobile,
-  //           orderDate: order.ORDER_DATE || format(new Date(), "dd/MM/yyyy HH:mm:ss"),
-  //           remarks: "SUB_CREATED",
-  //           checksum,
-  //         },
-  //       };
-  
-  //       const bsnlRes = await fetch("/api/updateBsnlOrder", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify(bsnlPayload),
-  //       });
-  
-  //       const bsnlData = await bsnlRes.json();
-  //       const remarks = bsnlData?.ROWSET?.[0]?.REMARKS || "No Remarks";
-  //       const bsnlStatus = bsnlData?.STATUS?.toLowerCase();
-  
-  //       bsnlResultsTemp.push({
-  //         orderId: order.ORDER_ID,
-  //         mobile,
-  //         iptvStatus: "Active",
-  //         vendorCode: "IPTV_ULKA_TV",
-  //         activity: "SUB_CREATED",
-  //         remarks,
-  //         status: bsnlStatus || "unknown",
-  //       });
-  
-  //       if (bsnlStatus === "success" && remarks.includes("Updated Successfully")) {
-  //         toast.success(`✅ BSNL Activated: ${order.ORDER_ID}`);
-  //         processedPhones.add(mobile);
-  //         successMobiles.push(mobile);
-  //       } else {
-  //         toast.error(`❌ BSNL failed: ${order.ORDER_ID} - ${remarks}`);
-  //       }
-  
-  //     } catch (err) {
-  //       console.error("❌ Internal Error:", err);
-  //       toast.error("❌ Internal Error. Please try again.");
-  //     }
-  
-  //     // Supabase lo already unte kuda local lo track cheyyadam
-  //     if (alreadyRegistered) {
-  //       setExistingMobilesSet((prevSet) => {
-  //         const updated = new Set(prevSet);
-  //         updated.add(mobile);
-  //         localStorage.setItem("existingMobiles", JSON.stringify(Array.from(updated)));
-  //         return updated;
-  //       });
-  //     }
-  //   }
-  
-  //   setSuccessMobiles(successMobiles);
-  //   setSelectedOrderIds([]);
-  //   setBsnlResults(bsnlResultsTemp);
-  //   setShowResultModal(true);
-  //   setExistingMobiles((prev) => {
-  //     const updatedMobiles = [...new Set([...prev, ...currentExistingMobiles])];
-  //     localStorage.setItem("existingMobiles", JSON.stringify(updatedMobiles));
-  //     return updatedMobiles;
-  //   });
-  // };
   
 
   if (loading) return <p className="p-4">Loading...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
 
   return (
-    <div className="w-full px-4 pt-24 pl-20 overflow-x-auto mb-8">
-      <h1 className="flex text-lg font-bold mb-6 text-left mt-[2rem]">
-        Pending orders from BSNL FMS <p className="text-[14px] ml-2">(To select based on order date, an input box is provided below where dates can be displayed day-wise).</p>
+    <div className="w-full px-4 pt-20 pl-20 overflow-x-auto mb-8">
+      <h1 className="text-2xl font-bold mb-6 text-left mt-[2rem]">
+        Bsnl Pending orders Checksum Message Page
       </h1>
-
 
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <label className="font-medium">Filter by BA</label>
 
         <select
-          className="border-2 border-gray-300 rounded px-3 py-2 w-64"
+          className="border border-gray-300 rounded px-3 py-2 w-64"
           value={selectedBA}
           onChange={handleFilterChange}
         >
@@ -929,7 +563,7 @@ const IPTVOrdersPage = () => {
         </select>
 
           <Select
-            className="w-64 border-2 border-gray-300"
+            className="w-64"
             options={orderDateOptions}
             value={orderDateOptions.find(opt => opt.value === selectedOD)}
             onChange={(selectedOption: SingleValue<OptionType>) => {
@@ -948,7 +582,6 @@ const IPTVOrdersPage = () => {
           onClick={resetBA}
           className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
         >
-        <label className="font-medium">Filter by BA</label>
           Clear
         </button>
 
@@ -962,7 +595,7 @@ const IPTVOrdersPage = () => {
 
         <button
           type="button"
-          onClick={handleCreate}
+          onClick={handleBSNLUpdateOnly}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
         >
           Send
@@ -976,10 +609,8 @@ const IPTVOrdersPage = () => {
       </div>
 
       <div className="overflow-auto">
-      <p className="text-[14px] mb-2">Select All Box(Options)</p>
-
-        <table className="min-w-[1700px] border-2 border-gray-300 text-[15px]">
-          <thead className="bg-red-500  text-white text-left font-bold">
+        <table className="min-w-[1700px] border border-gray-300 text-[15px]">
+          <thead className="bg-gray-100 text-left font-bold">
             <tr>
               <th className="px-6 py-2 border">
                 <input
@@ -988,13 +619,13 @@ const IPTVOrdersPage = () => {
                   onChange={handleSelectAll}
                 />
               </th>
-              <th className="px-4 py-2 border-2">Order ID</th>
-              <th className="px-4 py-2 border-2">Order Date</th>
-              <th className="px-4 py-2 border-2">Customer</th>
-              <th className="px-4 py-2 border-2">Circle Code</th>
-              <th className="px-4 py-2 border-2">BA Code</th>
-              <th className="px-4 py-2 border-2">RMN</th>
-              <th className="px-4 py-2 border-2">Action</th>
+              <th className="px-4 py-2 border">Order ID</th>
+              <th className="px-4 py-2 border">Order Date</th>
+              <th className="px-4 py-2 border">Customer</th>
+              <th className="px-4 py-2 border">Circle Code</th>
+              <th className="px-4 py-2 border">BA Code</th>
+              <th className="px-4 py-2 border">RMN</th>
+              <th className="px-4 py-2 border">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -1030,12 +661,13 @@ const IPTVOrdersPage = () => {
                 })()}
 
                 </td>
-                <td className="px-4 py-2 border-2">{order.ORDER_ID}</td>
-                <td className="px-4 py-2 border-2">{order.ORDER_DATE}</td>
-                <td className="px-4 py-2 border-2">{order.CUSTOMER_NAME}</td>
-                <td className="px-4 py-2 border-2">{order.CIRCLE_CODE}</td>
-                <td className="px-4 py-2 border-2">{order.BA_CODE}</td>
-                <td className="px-4 py-2 border-2">{order.RMN || order.PHONE_NO}</td>
+
+                <td className="px-4 py-2 border">{order.ORDER_ID}</td>
+                <td className="px-4 py-2 border">{order.ORDER_DATE}</td>
+                <td className="px-4 py-2 border">{order.CUSTOMER_NAME}</td>
+                <td className="px-4 py-2 border">{order.CIRCLE_CODE}</td>
+                <td className="px-4 py-2 border">{order.BA_CODE}</td>
+                <td className="px-4 py-2 border">{order.RMN || order.PHONE_NO}</td>
                 <td className="p-2 border font-bold">
                     <button
                       onClick={() => handleViewClick(order)}
@@ -1172,9 +804,6 @@ const IPTVOrdersPage = () => {
           </div>
         </div>
       )}
-
-
-
       {isPopupVisible && popupData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg w-[90%] max-w-xl shadow-lg relative overflow-y-auto max-h-[90vh]">
@@ -1231,4 +860,4 @@ const IPTVOrdersPage = () => {
   );
 };
 
-export default IPTVOrdersPage;
+export default BsnlPendingChecksem;
