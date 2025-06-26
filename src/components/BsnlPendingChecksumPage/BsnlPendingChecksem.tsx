@@ -5,9 +5,6 @@ import { circleToCdnMap } from "../constants/cdnMap";
 import Select, { SingleValue } from 'react-select';
 import { toast }from 'react-toastify';
 import { format } from "date-fns";
-import { PRODUCTION_CONFIG } from "@/src/config/productionConfig";
-import { locationMap } from "@/src/config/locationMap";
-import { locationAliases } from "@/src/config/locationAliases";
 
 type Order = {
   ORDER_ID: string;
@@ -189,6 +186,15 @@ const BsnlPendingChecksem = () => {
       setOrders(cachedOrders); // 🌟 డేటా వెంటనే UI లో వస్తుంది
       const uniqueBAs = Array.from(new Set(cachedOrders.map(o => o.BA_CODE)));
       setBas(uniqueBAs);
+    }
+  }, []);
+  
+
+  useEffect(() => {
+    const localResults = localStorage.getItem("bsnlUpdateResults");
+    if (localResults) {
+      const parsed = JSON.parse(localResults);
+      setBsnlResults(parsed); // display in table or modal
     }
   }, []);
   
@@ -426,12 +432,6 @@ const BsnlPendingChecksem = () => {
     );
   };
 
-  const extractPincodeFromAddress = (address: string): string => {
-    const pincodeRegex = /(\d{6})$/;
-    const match = address.match(pincodeRegex);
-    return match ? match[1] : "138871"; // fallback if no pincode
-  };
-
   const handleSelectAll = () => {
     const selectableOrders = filteredOrders.filter(
       o => !existingMobilesSet.has(o.RMN || o.PHONE_NO || "")
@@ -510,7 +510,7 @@ const BsnlPendingChecksem = () => {
         const remarks = bsnlData?.ROWSET?.[0]?.REMARKS || "No Remarks";
         const bsnlStatus = bsnlData?.STATUS?.toLowerCase();
   
-        bsnlResultsTemp.push({
+        const result: BsnlResult = {
           orderId: order.ORDER_ID,
           mobile,
           iptvStatus: "Active",
@@ -518,7 +518,15 @@ const BsnlPendingChecksem = () => {
           activity: "SUB_CREATED",
           remarks,
           status: bsnlStatus || "unknown",
-        });
+        };
+  
+        bsnlResultsTemp.push(result);
+  
+        // ✅ Store result in localStorage for offline view
+        const existingData = localStorage.getItem("bsnlUpdateResults");
+        const parsed: BsnlResult[] = existingData ? JSON.parse(existingData) : [];
+        const updatedData = [...parsed, result];
+        localStorage.setItem("bsnlUpdateResults", JSON.stringify(updatedData));
   
         if (bsnlStatus === "success" && remarks.includes("Updated Successfully")) {
           toast.success(`✅ BSNL Updated Successfully: ${order.ORDER_ID}`);
@@ -532,10 +540,9 @@ const BsnlPendingChecksem = () => {
       }
     }
   
-    setBsnlResults(bsnlResultsTemp);
-    setShowResultModal(true);
-  };
-  
+    setBsnlResults(bsnlResultsTemp); // UI update
+    setShowResultModal(true);        // Show summary
+  };  
 
   if (loading) return <p className="p-4">Loading...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
